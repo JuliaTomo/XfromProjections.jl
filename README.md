@@ -2,7 +2,7 @@ Welcome to XfromProjections (under development)
 
 XfromProjections aims to provide solutions X from tomographic projection data. X can be images, edges (or ). Instead of providinga a solver as a blackbox, we sometimes divide multiple steps. For example, for filtered back-projection, the user should use filtering and back projection seperately. 
 
-XfromProjectiions depend on [TomoForward](https://github.com/JuliaTomo/TomoForward) package for forward operators.
+XfromProjectiions depends on [TomoForward](https://github.com/JuliaTomo/TomoForward) package for forward operators.
 
 ## Install
 
