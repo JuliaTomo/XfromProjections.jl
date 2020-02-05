@@ -25,7 +25,7 @@ Please see codes in test folder.
 
 ### Analytic methods
 
-- FBP with different filters of Ram-Lak, Henning, Hann, Kaiser
+- FBP with different filters of Ram-Lak, Henning, Hann, Kaiser [Kak]
 
 ### Iterative methods
 
@@ -38,7 +38,7 @@ Please see codes in test folder.
 
 ## Shape form Projections
 
-- Parametric level set (Todo) []
+- (Todo) Parametric level set (Todo) []
 
 # Todos
 
@@ -49,6 +49,6 @@ Please see codes in test folder.
 # Reference
 
 - [1] https://astra-toolbox.com
+- [3] Andersen, A.H., Kak, A.C., 1984. Simultaneous Algebraic Reconstruction Technique (SART): A superior implementation of the ART algorithm. Ultrasonic Imaging 6. https://doi.org/10.1016/0161-7346(84)90008-7
 - [4] Chambolle, A., Pock, T., 2016. An introduction to continuous optimization for imaging. Acta Numerica 25, 161–319.
 - [10] Srinivasa, N., Ramakrishnan, K.R., Rajgopal, K., 1992. Detection of edges from projections. IEEE Transactions on Medical Imaging 11, 76–80. https://doi.org/10.1109/42.126913
-- [3] Andersen, A.H., Kak, A.C., 1984. Simultaneous Algebraic Reconstruction Technique (SART): A superior implementation of the ART algorithm. Ultrasonic Imaging 6. https://doi.org/10.1016/0161-7346(84)90008-7
