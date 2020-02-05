@@ -2,7 +2,7 @@ Welcome to XfromProjections (under development)
 
 XfromProjections aims to provide solutions X from tomographic projection data. X can be images, edges (or ). Instead of providinga a solver as a blackbox, we sometimes divide multiple steps. For example, for filtered back-projection, the user should use filtering and back projection seperately. 
 
-XfromProjectiions depend on [TomoForward](https://github.com/TomoJulia/TomoForward) package for forward operators.
+XfromProjectiions depend on [TomoForward](https://github.com/JuliaTomo/TomoForward) package for forward operators.
 
 ## Install
 
@@ -10,8 +10,8 @@ Install [Julia](https://julialang.org/downloads/) and in [Julia REPL](https://do
 
 ```
 julia> ]
-pkg> add https://github.com/TomoJulia/TomoForward.jl
-pkg> add https://github.com/TomoJulia/XfromProjections.jl
+pkg> add https://github.com/JuliaTomo/TomoForward.jl
+pkg> add https://github.com/JuliaTomo/XfromProjections.jl
 ```
 
 ## Examples
