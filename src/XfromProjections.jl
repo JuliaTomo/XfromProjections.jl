@@ -1,6 +1,6 @@
 module XfromProjections
 
-# analytic 
+# analytic
 include("filter_proj.jl")
 export filter_proj
 
@@ -8,8 +8,9 @@ export filter_proj
 
 include("iterative/util_convexopt.jl")
 include("iterative/tv_primaldual.jl")
+include("iterative/tv_primaldual_flow.jl")
 include("iterative/sirt.jl")
-export recon2d_tv_primaldual, recon2d_sirt
+export recon2d_tv_primaldual, recon2d_sirt, recon2d_tv_primaldual_flow
 
 # edges
 

@@ -8,10 +8,26 @@ ops[2]: TV
 
 argmin_u \|ops[1]*u - b\|_2^2 + w_tv TV(u)
 """
+
+function get_tv_adjoints!(ops, b, ubar, w_tv, sigmas, p1, p2, H, W)
+    # dual update
+    #println(size(ubar), size(b), size(ops[1]))
+    data1 = (ops[1]*vec(ubar) .- b)
+    # p1 = proj_dual_l1(p1_ascent, w_data) # l1 norm
+    p1 = (p1 + sigmas[1] * data1) ./ (sigmas[1] + 1.0) # l2 norm
+    p1_adjoint = reshape(ops[1]' * p1, H, W)
+
+    data2 = ops[2]*ubar
+    p2 = p2 + sigmas[2]*data2
+    proj_dual_iso!(p2, w_tv)
+    p2_adjoint = ops[2]' * p2
+
+    return data1, data2, p1, p2, p1_adjoint, p2_adjoint
+end
+
 function _recon2d_tv_primaldual(ops, b, u0, niter, w_tv, sigmas, tau)
     H, W = size(u0)
-    nops = length(ops)
-    
+
     u = u0
     ubar = deepcopy(u)
 
@@ -21,18 +37,8 @@ function _recon2d_tv_primaldual(ops, b, u0, niter, w_tv, sigmas, tau)
     for it=1:niter
         u_prev = deepcopy(u)
 
-        # dual update
-        data1 = (ops[1]*vec(ubar) .- b)
-        # p1 = proj_dual_l1(p1_ascent, w_data) # l1 norm
-        p1 = (p1 + sigmas[1] * data1) ./ (sigmas[1] + 1.0) # l2 norm
-        p1_adjoint = reshape(ops[1]' * p1, H, W)
+        data1, data2, p1, p2, p1_adjoint, p2_adjoint = get_tv_adjoints!(ops, b, ubar, w_tv, sigmas, p1, p2, H, W)
 
-        data2 = ops[2]*ubar
-        p2 = p2 + sigmas[2]*data2
-        proj_dual_iso!(p2, w_tv)
-        p2_adjoint = ops[2]' * p2
-
-        
         p_adjoint = p1_adjoint + p2_adjoint
 
         # primal update
@@ -58,7 +64,7 @@ Reconstruct a 2d image by total variation model using Primal Dual optimization m
 
 # Args
 A : Forward opeartor
-b : Projection data 
+b : Projection data
 u0: Initial guess of image
 niter: number of iterations
 w_tv: weight for TV term
@@ -72,7 +78,7 @@ function recon2d_tv_primaldual(A, b::Array{R, 1},
     @time op_A_norm = compute_opnorm(A)
     println("@ opnorm of forward projection operator: $op_A_norm")
     ops_norm = [op_A_norm, sqrt(8)]
-    
+
     sigmas = zeros(length(ops))
     for i=1:length(ops)
         sigmas[i] = 1.0 / (ops_norm[i] * c)
@@ -81,6 +87,6 @@ function recon2d_tv_primaldual(A, b::Array{R, 1},
     tau = c / sum(ops_norm)
 
     println("@ step sizes sigmas: ", sigmas, ", tau: $tau")
-    
+
     return _recon2d_tv_primaldual(ops, b, u0, niter, w_tv, sigmas, tau)
 end
