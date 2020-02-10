@@ -2,7 +2,7 @@
 
 module util_convexopt
 
-export LinOp, compute_opnorm, proj_dual_iso!
+export LinOp, compute_opnorm, proj_dual_iso!, proj_l1
 
 # See http://www.ima.umn.edu/materials/2019-2020/SW10.14-18.19/28302/talk.pdf
 struct LinOp
@@ -47,7 +47,7 @@ function grad(u::Array{T, 2}) where {T<:AbstractFloat}
     uy = circshift(u, [-1, 0]) - u
     ux[:, end] .= 0.0
     uy[end, :] .= 0.0
-    
+
     return cat(ux, uy, dims=3)
 end
 
@@ -58,7 +58,7 @@ function grad(u::Array{T, 3}) where {T<:AbstractFloat}
     ux[:, end,   :] .= 0.0
     uy[end, :,   :] .= 0.0
     uz[:,   :, end] .= 0.0
-    
+
     return cat(ux, uy, uz, dims=3)
 end
 
@@ -75,11 +75,11 @@ function div2d(p1, p2)
     p1_x         =  p1 - circshift(p1, [0, 1])
     p1_x[:, end] .= -p1[:, end-1]
     p1_x[:,   1] .=  p1[:, 1]
-    
+
     p2_y = p2 - circshift(p2, [1, 0])
     p2_y[end, :] .= -p2[end-1, :]
     p2_y[1,   :] .=  p2[1, :]
-    
+
     div_p = p1_x + p2_y
     return div_p
 end
@@ -89,7 +89,7 @@ function div3d(p1, p2, p3)
     p1_x         =  p1 - circshift(p1, [0, 1, 0])
     p1_x[:, end, :] .= -p1[:, end-1, :]
     p1_x[:,   1, :] .=  p1[:, 1, :]
-    
+
     p2_y = p2 - circshift(p2, [1, 0, 0])
     p2_y[end, :, :] .= -p2[end-1, :, :]
     p2_y[1,   :, :] .=  p2[1, :, :]
@@ -97,7 +97,7 @@ function div3d(p1, p2, p3)
     p3_z = p3 - circshift(p3, [0, 0, 1])
     p3_z[end, :, :] .= -p3[:, :, end-1]
     p3_z[1,   :, :] .=  p3[:, :, 1]
-    
+
     div_p = p1_x + p2_y
     return div_p
 end
@@ -109,9 +109,10 @@ function proj_dual_iso!(p, weight)
     p[:,:,2] ./= max.(1.0, norms ./ (weight+1e-8))
 end
 
+
 "Project l1 norm"
 function proj_l1(x, weight)
-    return sign(x) .* max.(abs.(x), 0.0)
+    return sign.(x) .* max.(abs.(x), 0.0)
 end
 
 
