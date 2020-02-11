@@ -43,7 +43,7 @@ function radon_operator(img)
     return A
 end
 
-frames = zeros(H,W,5)
+frames = zeros(H,W,10)
 map(t -> frames[:,:,t+1]=replace_nan(warp(img, nonlinear_transformation(t*0.1), axes(img))), 0:size(frames)[3]-1)
 As = map(t -> radon_operator(frames[:,:,t]),1:size(frames)[3])
 bs = zeros(size(As[1])[1],size(frames)[3])
