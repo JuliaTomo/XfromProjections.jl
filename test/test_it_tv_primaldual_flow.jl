@@ -1,17 +1,14 @@
-using Revise
 using TomoForward
-using SparseArrays
 using Images
 using Plots
 using XfromProjections
 using ImageTransformations
 using StaticArrays
 using PyCall
-using Interpolations
 
 replace_nan(v) = map(x -> isnan(x) ? zero(x) : x, v)
 
-#Define some non-linear transformation and the inverse
+#Define some non-linear transformation for warping
 function nonlinear_transformation(ϕ)
     m1 = (sin(0.002*(ϕ*(257/(2*π))-1)*3/256))/4
     m2 = (sin(0.005*(ϕ*(257/(2*π))-1)*3/256))/4
@@ -37,11 +34,6 @@ H, W = 128, 128
 img = imresize(img, H, W)
 p_img = plot(Gray.(img), aspect_ratio=:equal, framestyle=:none, title="Original")
 
-# trans =nonlinear_transformation(0.5)
-# imgw = replace_nan(warp(img, trans, axes(img)))
-# p_img_w = plot(Gray.(imgw), aspect_ratio=:equal, framestyle=:none, title="Image Warped")
-
-# test line projection model
 function radon_operator(img)
     nangles = 10
     detcount = Int(floor(size(img,1)*1.4))
@@ -51,14 +43,24 @@ function radon_operator(img)
     return A
 end
 
-frames=map(deg -> replace_nan(warp(img, nonlinear_transformation(deg), axes(img))), 0:0.1:1.0)
-As = map(f -> radon_operator(f),frames)
-ps = map(t -> As[t]*vec(frames[t]), 1:length(frames))
+frames = zeros(H,W,5)
+map(t -> frames[:,:,t+1]=replace_nan(warp(img, nonlinear_transformation(t*0.1), axes(img))), 0:size(frames)[3]-1)
+As = map(t -> radon_operator(frames[:,:,t]),1:size(frames)[3])
+bs = zeros(size(As[1])[1],size(frames)[3])
+map(t -> bs[:,t] = As[t]*vec(frames[:,:,t]), 1:size(frames)[3])
 niter=800
-u0s = zeros(H,W,length(frames))
-us = recon2d_tv_primaldual_flow(As, ps, u0s, niter, 0.01, 0.5)
+u0s = zeros(H,W,size(frames)[3])
+us = recon2d_tv_primaldual_flow(As, bs, u0s, niter, 0.01, 0.5)
 
-p_1 = plot(Gray.(us[:,:,8]), aspect_ratio=:equal, framestyle=:none, title="recon")
+anim = @animate for t=1:size(frames)[3]
+    l = @layout [a b]
+    p1 = plot(Gray.(frames[:,:,t]), aspect_ratio=:equal, framestyle=:none, title="Ground truth")
+    p2 = plot(Gray.(us[:,:,t]), aspect_ratio=:equal, framestyle=:none, title="Reconstruction")
+    plot(p1, p2, layout = l)
+end
 
-#l = @layout [a b; c]
-#plot(p_img, p_1, p_img_w, layout=l)
+cwd = @__DIR__
+path = normpath(joinpath(@__DIR__, "results"))
+cd(path)
+gif(anim, "reconstruction.gif", fps = 1)
+cd(cwd)

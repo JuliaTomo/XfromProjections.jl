@@ -5,21 +5,6 @@ export get_flows, compute_warping_operator
 using PyCall
 using Suppressor
 
-# function py_flow(img1, img2; alpha=0.012, ratio=0.75, minWidth=20, nOuterFPIterations=1, nInnerFPIterations=1, nSORIterations=30, colType=1)
-#     H, W = size(img1)
-#     py"""
-#     import pyflow
-#     import numpy as np
-#     im1 = np.array(img1).reshape(height,width,1).copy(order='C')
-#     im2 = np.array(img2).reshape(height,width,1).copy(order='C')
-#
-#     u, v, im2W = pyflow.coarse2fine_flow(
-#         im1, im2, alpha, ratio, minWidth, nOuterFPIterations, nInnerFPIterations,
-#         nSORIterations, colType)
-#     """
-#     return u, v, im2W
-# end
-
 is_initiated = false
 
 function __init__()

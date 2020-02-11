@@ -33,9 +33,8 @@ function _recon2d_tv_primaldual_flow(As,u0s,bs,w_tv,w_flow,c,v,niter)
             p_adjoint[:,:,t] = p1_adjoint + p2_adjoint
 
             if t < frames
-                # I2_warp - I1
                 sigma3 = compute_opnorm(W_list[t])
-                # Warp u[t+1] by flow, and subtract 
+
                 Wu = W_list[t]*(collect(Iterators.flatten(ubar[:,:,t+1]))) - (collect(Iterators.flatten(ubar[:,:,t])))
 
                 p3_ascent = p3[:,:,t] + sigma3 * reshape(Wu, height, width)
@@ -54,11 +53,6 @@ function _recon2d_tv_primaldual_flow(As,u0s,bs,w_tv,w_flow,c,v,niter)
         # acceleration
         ubar = 2*u - u_prev
 
-        # compute primal energy (optional)
-        # if it % 10 == 0
-        #     energy = sum(data1.^2) / length(data1) + sum(abs.(data2)) / length(data2)
-        #     println("$it, approx. primal energy: $energy")
-        # end
     end
     return u
 end
@@ -82,7 +76,7 @@ function recon2d_tv_primaldual_flow(As, bs::Array{R, 2}, u0s::Array{R, 3}, niter
     height, width, frames = size(u0s)
     v = zeros(height, width, 2, frames)
     u = u0s
-    p = Progress(niter,1)
+    p = Progress(niter,1, "Optimizing")
     for i = 1:niter
         u_prev = u
         v_prev = v
