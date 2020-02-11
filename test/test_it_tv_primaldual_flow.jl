@@ -31,95 +31,34 @@ function nonlinear_transformation(ϕ)
     return t
 end
 
-# py"""
-# import numpy as np
-# import pyflow
-#
-# def flow(img1,img2,alpha=0.012, ratio=0.75, minWidth=20, nOuterFPIterations=1, nInnerFPIterations=1, nSORIterations=30, colType=1):
-#     img1 = np.array(img1)
-#     img2 = np.array(img2)
-#     height, width = img1.shape
-#
-#     im1 = np.array(img1).reshape(height,width,1).copy(order='C')
-#     im2 = np.array(img2).reshape(height,width,1).copy(order='C')
-#
-#     u, v, im2W = pyflow.coarse2fine_flow(
-#         im1, im2, alpha, ratio, minWidth, nOuterFPIterations, nInnerFPIterations,
-#         nSORIterations, colType)
-#
-#     return u, v, im2W
-# """
-
-function imWarp(img, dx, dy)
-    itp = interpolate(img, BSpline(Linear()))
-    H,W = size(img)
-    imw = zeros(H,W)
-    for I in CartesianIndices(img)
-        dxi, dyi = dx[I], dy[I]
-        y, x = clamp(I[1] + dyi, 1, H), clamp(I[2] + dxi, 1, W)
-        imw[I] = itp[y, x]
-    end
-    return imw
-end
-
 img = convert.(AbstractFloat,Gray.(load(normpath(joinpath(@__DIR__, "test_data/shepplogan512.png")))))[:,:,1]
 
 H, W = 128, 128
 img = imresize(img, H, W)
 p_img = plot(Gray.(img), aspect_ratio=:equal, framestyle=:none, title="Original")
 
-trans =nonlinear_transformation(0.8)
-imgw = replace_nan(warp(img, trans, axes(img)))
-p_img_w = plot(Gray.(imgw), aspect_ratio=:equal, framestyle=:none, title="Image Warped")
-
-# flow_x, flow_y, im2Warped = py"flow"(img,imgw)
-# p_warped_gt = plot(Gray.(im2Warped[:,:,1]), aspect_ratio=:equal, framestyle=:none, title="Image Warped back")
-#
-# flow = cat(flow_x,flow_y, dims=3)
-# Warper = compute_warping_operator(flow)
-# im_vec = collect(Iterators.flatten(img))
-#
-# im_warp_op = reshape(Warper*im_vec, H, W)
-# p_op = plot(Gray.(im_warp_op), aspect_ratio=:equal, framestyle=:none, title="Warping operator")
-#
-# # im_warp_py = reshape(warper_py*im_vec, H, W)
-# # p_py = plot(Gray.(im_warp_py), aspect_ratio=:equal, framestyle=:none, title="Warping py")
-#
-# l = @layout [a b; c d]
-#
-# # img_w_intp = imWarp(imgw, flow_x, flow_y)
-# # p_intp = plot(Gray.(img_w_intp), aspect_ratio=:equal, framestyle=:none, title="Interpolator")
-# plot(p_img, p_img_w, p_warped_gt, p_op, layout = l)
-
-img = zeros(128, 128)
-img[40:60, 40:60] .= 1.0
-
-nangles = 30
-detcount = Int(floor(size(img,1)*1.4))
-####A1########
-proj_geom = ProjGeom(1.0, detcount, LinRange(0,pi,nangles+1)[1:nangles])
+# trans =nonlinear_transformation(0.5)
+# imgw = replace_nan(warp(img, trans, axes(img)))
+# p_img_w = plot(Gray.(imgw), aspect_ratio=:equal, framestyle=:none, title="Image Warped")
 
 # test line projection model
-A_1 = fp_op_parallel2d_line(proj_geom, size(img, 1), size(img, 2))
-p_1 = A_1 * vec(img)
-###############
+function radon_operator(img)
+    nangles = 10
+    detcount = Int(floor(size(img,1)*1.4))
 
-p_2 = A_1 * vec(imgw)
+    proj_geom = ProjGeom(1.0, detcount, LinRange(0,pi,nangles+1)[1:nangles])
+    A = fp_op_parallel2d_line(proj_geom, size(img, 1), size(img, 2))
+    return A
+end
 
-
-# p_noise = p + rand(size(p, 1))
-# p = reshape(Array(p), (:, detcount));
-
-u0 = zeros(size(img))
+frames=map(deg -> replace_nan(warp(img, nonlinear_transformation(deg), axes(img))), 0:0.1:1.0)
+As = map(f -> radon_operator(f),frames)
+ps = map(t -> As[t]*vec(frames[t]), 1:length(frames))
 niter=800
-lambdas = [0.01, 0.1, 0.6]
-As = [A_1, A_1]
-u0s = cat(u0, u0, dims = 3)
-bs = cat(p_1, p_2, dims = 2)
-us = recon2d_tv_primaldual_flow(As, bs, u0s, niter, 0.01, 0.5)
+u0s = zeros(H,W,length(frames))
+us = recon2d_tv_primaldual_flow(As, ps, u0s, niter, 0.01, 0.5)
 
-p_img = plot(Gray.(img), aspect_ratio=:equal, framestyle=:none, title="Image")
-p_1 = plot(Gray.(us[:,:,1]), aspect_ratio=:equal, framestyle=:none, title="lamb $(lambdas[3]) c=0.01")
+p_1 = plot(Gray.(us[:,:,8]), aspect_ratio=:equal, framestyle=:none, title="recon")
 
-l = @layout [a b; c]
-plot(p_img, p_1, p_img_w, layout=l)
+#l = @layout [a b; c]
+#plot(p_img, p_1, p_img_w, layout=l)

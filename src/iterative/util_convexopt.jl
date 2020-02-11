@@ -2,7 +2,7 @@
 
 module util_convexopt
 
-export LinOp, compute_opnorm, proj_dual_iso!, proj_l1
+export LinOp, compute_opnorm, proj_dual_iso!, proj_l1, proj_dual_l1
 
 # See http://www.ima.umn.edu/materials/2019-2020/SW10.14-18.19/28302/talk.pdf
 struct LinOp
@@ -111,9 +111,13 @@ end
 
 
 "Project l1 norm"
-function proj_l1(x, weight)
-    return sign.(x) .* max.(abs.(x), 0.0)
+function proj_l1(x, weight=0.0)
+    return sign.(x) .* max.(abs.(x), weight)
 end
 
+function proj_dual_l1(x, radius=1.0)
+    proj = sign.(x) .* min.(abs.(x), radius)
+    return proj
+end
 
 end

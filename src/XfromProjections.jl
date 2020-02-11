@@ -8,9 +8,12 @@ export filter_proj
 
 include("iterative/util_convexopt.jl")
 include("iterative/tv_primaldual.jl")
-include("iterative/tv_primaldual_flow.jl")
 include("iterative/sirt.jl")
-export recon2d_tv_primaldual, recon2d_sirt, recon2d_tv_primaldual_flow, compute_warping_operator
+export recon2d_tv_primaldual, recon2d_sirt
+
+include("dynamic/optical_flow.jl")
+include("dynamic/tv_primaldual_flow.jl")
+export recon2d_tv_primaldual_flow
 
 # edges
 
