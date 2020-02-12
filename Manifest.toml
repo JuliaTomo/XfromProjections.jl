@@ -22,7 +22,7 @@ uuid = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
 version = "1.0.0"
 
 [[BinaryProvider]]
-deps = ["Compat", "CredentialsHandler", "Libdl", "Pkg", "SHA", "TOML", "Test"]
+deps = ["CredentialsHandler", "Libdl", "Logging", "SHA", "TOML", "Test"]
 git-tree-sha1 = "5b08ed6036d9d3f0ee6369410b830f8873d4024c"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
 version = "0.5.8"
@@ -97,6 +97,12 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 [[DelimitedFiles]]
 deps = ["Mmap"]
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+
+[[Dierckx]]
+deps = ["BinaryProvider", "Libdl", "Random", "Test"]
+git-tree-sha1 = "27a74763c20938a814da26f31a9e8408d16fec44"
+uuid = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
+version = "0.4.1"
 
 [[Distributed]]
 deps = ["Random", "Serialization", "Sockets"]

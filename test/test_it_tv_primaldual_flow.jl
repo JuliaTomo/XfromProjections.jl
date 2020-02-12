@@ -5,6 +5,7 @@ using XfromProjections
 using ImageTransformations
 using StaticArrays
 using PyCall
+using Logging
 
 replace_nan(v) = map(x -> isnan(x) ? zero(x) : x, v)
 
@@ -43,6 +44,7 @@ function radon_operator(img)
     return A
 end
 
+
 frames = zeros(H,W,10)
 map(t -> frames[:,:,t+1]=replace_nan(warp(img, nonlinear_transformation(t*0.1), axes(img))), 0:size(frames)[3]-1)
 As = map(t -> radon_operator(frames[:,:,t]),1:size(frames)[3])
@@ -50,13 +52,29 @@ bs = zeros(size(As[1])[1],size(frames)[3])
 map(t -> bs[:,t] = As[t]*vec(frames[:,:,t]), 1:size(frames)[3])
 niter=800
 u0s = zeros(H,W,size(frames)[3])
-us = recon2d_tv_primaldual_flow(As, bs, u0s, niter, 0.01, 0.5)
 
+w_tv = 0.01
+w_flow  = 0.5
+
+@info "Reconstructing using joint motion estimation and reconstruction"
+us_flow = recon2d_tv_primaldual_flow(As, bs, u0s, niter, w_tv, w_flow)
+
+@info "Reconstruction using tv regularization frame by frame"
+us_tv = zeros(H,W,1:size(frames)[3])
+for t = 1:size(frames)[3]
+    A = As[t]
+    p = bs[:,t]
+    u0 = u0s[:,:,t]
+    us_tv[:,:,t] = recon2d_tv_primaldual(A, p, u0, niter, w_tv)
+end
+
+@info "Preparing results in human readable format"
 anim = @animate for t=1:size(frames)[3]
-    l = @layout [a b]
+    l = @layout [a b c]
     p1 = plot(Gray.(frames[:,:,t]), aspect_ratio=:equal, framestyle=:none, title="Ground truth")
-    p2 = plot(Gray.(us[:,:,t]), aspect_ratio=:equal, framestyle=:none, title="Reconstruction")
-    plot(p1, p2, layout = l)
+    p2 = plot(Gray.(us_flow[:,:,t]), aspect_ratio=:equal, framestyle=:none, title="Flow")
+    p3 = plot(Gray.(us_tv[:,:,t]), aspect_ratio=:equal, framestyle=:none, title="TV")
+    plot(p1, p2, p3, layout = l)
 end
 
 cwd = @__DIR__

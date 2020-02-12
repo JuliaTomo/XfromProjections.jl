@@ -3,7 +3,8 @@ using .util_convexopt
 using ProgressMeter
 using Suppressor
 
-function _recon2d_tv_primaldual_flow(As,u0s,bs,w_tv,w_flow,c,v,niter)
+function _recon2d_tv_primaldual_flow(A_A_norm,u0s,bs,w_tv,w_flow,c,v,niter)
+    #A variational reconstruction method for undersampled dynamic x-ray tomography based on physical motion models (Burger)#
     height, width, frames = size(u0s)
 
     u = u0s
@@ -12,8 +13,6 @@ function _recon2d_tv_primaldual_flow(As,u0s,bs,w_tv,w_flow,c,v,niter)
     p1 = zeros(size(bs))
     p2 = zeros(height, width, 2,frames)
     p3 = zeros(height, width, frames)
-
-    A_A_norm = map(A -> (A,compute_opnorm(A)), As)
 
     W_list = mapslices(f -> compute_warping_operator(f), v,dims=[1,2,3])
     p_adjoint  = zeros(height, width, frames)
@@ -60,7 +59,7 @@ end
 """
     recon2d_tv_primaldual_flow(As, bs, u0s, niter, w_tv, w_flow, c=1.0)
 
-Reconstruct a 2d image by total variation model using Primal Dual optimization method
+Reconstruct a 2d image by total variation model using Primal Dual optimization method and optical flow estimation
 
 # Args
 As : List of forward opeartors
@@ -76,12 +75,13 @@ function recon2d_tv_primaldual_flow(As, bs::Array{R, 2}, u0s::Array{R, 3}, niter
     height, width, frames = size(u0s)
     v = zeros(height, width, 2, frames)
     u = u0s
+    A_A_norm = map(A -> (A,compute_opnorm(A)), As)
     p = Progress(niter,1, "Optimizing")
     for i = 1:niter
         u_prev = u
         v_prev = v
         @suppress begin
-            u = _recon2d_tv_primaldual_flow(As,u,bs,w_tv,w_flow,c,v,10)
+            u = _recon2d_tv_primaldual_flow(A_A_norm,u,bs,w_tv,w_flow,c,v,10)
         end
         v = get_flows(u)
         next!(p)
