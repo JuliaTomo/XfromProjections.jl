@@ -6,6 +6,7 @@ using ImageTransformations
 using StaticArrays
 using PyCall
 using Logging
+using LinearOperators
 
 replace_nan(v) = map(x -> isnan(x) ? zero(x) : x, v)
 
@@ -29,7 +30,7 @@ function nonlinear_transformation(ϕ)
     return t
 end
 
-img = convert.(AbstractFloat,Gray.(load(normpath(joinpath(@__DIR__, "test_data/shepplogan512.png")))))[:,:,1]
+img = convert.(AbstractFloat,Gray.(load(normpath(joinpath(@__DIR__, "phantoms/shepplogan512.png")))))[:,:,1]
 
 H, W = 128, 128
 img = imresize(img, H, W)
@@ -38,9 +39,9 @@ p_img = plot(Gray.(img), aspect_ratio=:equal, framestyle=:none, title="Original"
 function radon_operator(img)
     nangles = 10
     detcount = Int(floor(size(img,1)*1.4))
-
+    angles = rand(0.0:0.001:π, nangles)
     proj_geom = ProjGeom(1.0, detcount, LinRange(0,pi,nangles+1)[1:nangles])
-    A = fp_op_parallel2d_line(proj_geom, size(img, 1), size(img, 2))
+    A = LinearOperator(fp_op_parallel2d_line(proj_geom, size(img, 1), size(img, 2)))
     return A
 end
 
@@ -53,14 +54,14 @@ map(t -> bs[:,t] = As[t]*vec(frames[:,:,t]), 1:size(frames)[3])
 niter=800
 u0s = zeros(H,W,size(frames)[3])
 
-w_tv = 0.01
-w_flow  = 0.5
+w_tv = 0.001
+w_flow  = 0.1
 
 @info "Reconstructing using joint motion estimation and reconstruction"
-us_flow = recon2d_tv_primaldual_flow(As, bs, u0s, niter, w_tv, w_flow)
+us_flow = recon2d_tv_primaldual_flow(As, bs, u0s, niter, niter, w_tv, w_flow)
 
 @info "Reconstruction using tv regularization frame by frame"
-us_tv = zeros(H,W,1:size(frames)[3])
+us_tv = zeros(H,W,size(frames)[3])
 for t = 1:size(frames)[3]
     A = As[t]
     p = bs[:,t]

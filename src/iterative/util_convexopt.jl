@@ -2,7 +2,7 @@
 
 module util_convexopt
 
-export LinOp, compute_opnorm, proj_dual_iso!, proj_l1, proj_dual_l1
+export LinOp, compute_opnorm, compute_opnorm_block, proj_dual_iso!, proj_l1, proj_dual_l1
 
 # See http://www.ima.umn.edu/materials/2019-2020/SW10.14-18.19/28302/talk.pdf
 struct LinOp
@@ -39,6 +39,32 @@ function compute_opnorm(A, niter=3)
     end
     #eig_max = x'*A'*A*x / x*x
     return sqrt(lamb)
+end
+
+"Compute opeartor norm based on the Power method"
+function compute_opnorm_block(As,shape, niter=3)
+    λ = 0
+    size,count = shape
+    x = rand(size*count)
+
+    for i=1:niter
+        x_next = zeros(size*count)
+        for j=1:count
+            A = As[j]
+            Ax = A*x[((j-1)*size)+1:((j-1)*size)+size]
+            x_next_j = A'*Ax
+            x_next[((j-1)*size)+1:((j-1)*size)+size] = x_next_j
+        end
+        λ_prev = λ
+        λ = sqrt(sum(x_next.^2))
+
+        if (abs(λ_prev-λ) < 1e-9)
+            println("break at iteration: ", i)
+            break
+        end
+        x = x_next / λ
+    end
+    return sqrt(λ)
 end
 
 "Compute forward gradient [HxWx2] of an image `u` with Neumann boundary condition."

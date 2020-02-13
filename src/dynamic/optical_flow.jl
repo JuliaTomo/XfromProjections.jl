@@ -4,6 +4,7 @@ export get_flows, compute_warping_operator
 
 using PyCall
 using Suppressor
+using LinearOperators
 
 is_initiated = false
 
