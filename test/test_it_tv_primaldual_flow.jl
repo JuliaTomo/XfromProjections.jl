@@ -69,5 +69,5 @@ end
 cwd = @__DIR__
 path = normpath(joinpath(@__DIR__, "results"))
 cd(path)
-gif(anim, "reconstruction.gif", fps = 1)
+gif(anim, "reconstruction_flow.gif", fps = 1)
 cd(cwd)
