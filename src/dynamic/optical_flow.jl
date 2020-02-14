@@ -4,7 +4,7 @@ export get_flows, compute_warping_operator
 
 using PyCall
 using Suppressor
-using LinearOperators
+#using LinearOperators
 
 is_initiated = false
 
@@ -96,67 +96,68 @@ function compute_warping_operator(flow)
     idxList = sub2ind(shape, YY, XX)
     idxList_ = collect(Iterators.flatten(idxList))
 
-    # find the indices
-    # list_J  = vcat(
-    #     idxList_[sub2ind(shape, x2[indicator], y2[indicator])],
-    #     idxList_[sub2ind(shape, x3[indicator], y2[indicator])],
-    #     idxList_[sub2ind(shape, x2[indicator], y3[indicator])],
-    #     idxList_[sub2ind(shape, x3[indicator], y3[indicator])])
-
+    #find the indices
     list_J  = vcat(
-        idxList_[sub2ind(shape, x1[indicator], y1[indicator])],
-        idxList_[sub2ind(shape, x2[indicator], y1[indicator])],
-        idxList_[sub2ind(shape, x3[indicator], y1[indicator])],
-        idxList_[sub2ind(shape, x4[indicator], y1[indicator])],
-        idxList_[sub2ind(shape, x1[indicator], y2[indicator])],
         idxList_[sub2ind(shape, x2[indicator], y2[indicator])],
         idxList_[sub2ind(shape, x3[indicator], y2[indicator])],
-        idxList_[sub2ind(shape, x4[indicator], y2[indicator])],
-        idxList_[sub2ind(shape, x1[indicator], y3[indicator])],
         idxList_[sub2ind(shape, x2[indicator], y3[indicator])],
-        idxList_[sub2ind(shape, x3[indicator], y3[indicator])],
-        idxList_[sub2ind(shape, x4[indicator], y3[indicator])],
-        idxList_[sub2ind(shape, x1[indicator], y4[indicator])],
-        idxList_[sub2ind(shape, x2[indicator], y4[indicator])],
-        idxList_[sub2ind(shape, x3[indicator], y4[indicator])],
-        idxList_[sub2ind(shape, x4[indicator], y4[indicator])])
+        idxList_[sub2ind(shape, x3[indicator], y3[indicator])])
+
+    # list_J  = vcat(
+    #     idxList_[sub2ind(shape, x1[indicator], y1[indicator])],
+    #     idxList_[sub2ind(shape, x2[indicator], y1[indicator])],
+    #     idxList_[sub2ind(shape, x3[indicator], y1[indicator])],
+    #     idxList_[sub2ind(shape, x4[indicator], y1[indicator])],
+    #     idxList_[sub2ind(shape, x1[indicator], y2[indicator])],
+    #     idxList_[sub2ind(shape, x2[indicator], y2[indicator])],
+    #     idxList_[sub2ind(shape, x3[indicator], y2[indicator])],
+    #     idxList_[sub2ind(shape, x4[indicator], y2[indicator])],
+    #     idxList_[sub2ind(shape, x1[indicator], y3[indicator])],
+    #     idxList_[sub2ind(shape, x2[indicator], y3[indicator])],
+    #     idxList_[sub2ind(shape, x3[indicator], y3[indicator])],
+    #     idxList_[sub2ind(shape, x4[indicator], y3[indicator])],
+    #     idxList_[sub2ind(shape, x1[indicator], y4[indicator])],
+    #     idxList_[sub2ind(shape, x2[indicator], y4[indicator])],
+    #     idxList_[sub2ind(shape, x3[indicator], y4[indicator])],
+    #     idxList_[sub2ind(shape, x4[indicator], y4[indicator])])
 
     list_J = collect(Iterators.flatten(list_J))
 
-    # list_val  = ( (1 .-v1) .* (1 .-v2))
-    # list_val = vcat(list_val,(v2 .* (1 .-v1)))
-    # list_val = vcat(list_val,(v1 .* (1 .-v2)))
-    # list_val = vcat(list_val,(v1 .* v2))
-    list_val =vcat(
-        (v1.*v2.*(v1 .- 1).^2 .*(v2 .- 1).^2)/4,
-        -1 .*(v1.*(v1 .- 1).^2 .*(3 .*v2.^3 .- 5 .*v2.^2 .+ 2))./4,
-        -1 .*(v1.*v2.*(v1 .- 1).^2 .*(- 3 .*v2.^2 + 4 .*v2 .+ 1))./4,
-        -1 .*(v1.*v2.^2 .*(v1 .- 1).^2 .*(v2 .- 1))./4,
-        -1 .*(v2.*(v2 .- 1).^2 .*(3 .*v1.^3 .- 5 .*v1.^2 .+ 2))./4,
-        ((3 .*v1.^3 .- 5 .*v1.^2 .+ 2).*(3 .*v2.^3 .- 5 .*v2.^2 .+ 2))./4,
-        (v2.*(- 3 .*v2.^2 .+ 4 .*v2 .+ 1).*(3 .*v1.^3 .- 5 .*v1.^2 .+ 2))./4,
-        (v2.^2 .*(v2 .- 1).*(3 .*v1.^3 .- 5 .*v1.^2 .+ 2))./4,
-        -1 .*(v1.*v2.*(v2 .- 1).^2 .*(- 3 .*v1.^2 .+ 4 .*v1 .+ 1))./4,
-        (v1.*(- 3 .*v1.^2 .+ 4 .*v1 .+ 1).*(3 .*v2.^3 .- 5 .*v2.^2 .+ 2))./4,
-        (v1.*v2.*(- 3 .*v1.^2 .+ 4 .*v1 .+ 1).*(- 3 .*v2.^2 .+ 4 .*v2 .+ 1))./4,
-        (v1.*v2.^2 .*(v2 .- 1).*(- 3 .*v1.^2 .+ 4 .*v1 .+ 1))./4,
-        -1 .*(v1.^2 .*v2.*(v1 .- 1).*(v2 .- 1).^2)./4,
-        (v1.^2 .*(v1 .- 1).*(3 .*v2.^3 .- 5 .*v2.^2 .+ 2))./4,
-        (v1.^2 .*v2.*(v1 .- 1).*(- 3 .*v2.^2 .+ 4 .*v2 .+ 1))./4,
-        (v1.^2 .*v2.^2 .*(v1 .- 1).*(v2 .- 1))./4
-    )
+    list_val  = ( (1 .-v1) .* (1 .-v2))
+    list_val = vcat(list_val,(v2 .* (1 .-v1)))
+    list_val = vcat(list_val,(v1 .* (1 .-v2)))
+    list_val = vcat(list_val,(v1 .* v2))
+    # list_val =vcat(
+    #     (v1.*v2.*(v1 .- 1).^2 .*(v2 .- 1).^2)/4,
+    #     -1 .*(v1.*(v1 .- 1).^2 .*(3 .*v2.^3 .- 5 .*v2.^2 .+ 2))./4,
+    #     -1 .*(v1.*v2.*(v1 .- 1).^2 .*(- 3 .*v2.^2 + 4 .*v2 .+ 1))./4,
+    #     -1 .*(v1.*v2.^2 .*(v1 .- 1).^2 .*(v2 .- 1))./4,
+    #     -1 .*(v2.*(v2 .- 1).^2 .*(3 .*v1.^3 .- 5 .*v1.^2 .+ 2))./4,
+    #     ((3 .*v1.^3 .- 5 .*v1.^2 .+ 2).*(3 .*v2.^3 .- 5 .*v2.^2 .+ 2))./4,
+    #     (v2.*(- 3 .*v2.^2 .+ 4 .*v2 .+ 1).*(3 .*v1.^3 .- 5 .*v1.^2 .+ 2))./4,
+    #     (v2.^2 .*(v2 .- 1).*(3 .*v1.^3 .- 5 .*v1.^2 .+ 2))./4,
+    #     -1 .*(v1.*v2.*(v2 .- 1).^2 .*(- 3 .*v1.^2 .+ 4 .*v1 .+ 1))./4,
+    #     (v1.*(- 3 .*v1.^2 .+ 4 .*v1 .+ 1).*(3 .*v2.^3 .- 5 .*v2.^2 .+ 2))./4,
+    #     (v1.*v2.*(- 3 .*v1.^2 .+ 4 .*v1 .+ 1).*(- 3 .*v2.^2 .+ 4 .*v2 .+ 1))./4,
+    #     (v1.*v2.^2 .*(v2 .- 1).*(- 3 .*v1.^2 .+ 4 .*v1 .+ 1))./4,
+    #     -1 .*(v1.^2 .*v2.*(v1 .- 1).*(v2 .- 1).^2)./4,
+    #     (v1.^2 .*(v1 .- 1).*(3 .*v2.^3 .- 5 .*v2.^2 .+ 2))./4,
+    #     (v1.^2 .*v2.*(v1 .- 1).*(- 3 .*v2.^2 .+ 4 .*v2 .+ 1))./4,
+    #     (v1.^2 .*v2.^2 .*(v1 .- 1).*(v2 .- 1))./4
+    # )
 
     list_val = collect(Iterators.flatten(list_val))
 
     list_I = idxList[indicator]
-    list_I =collect(Iterators.flatten(repeat(list_I,1,16)))
+    #list_I =collect(Iterators.flatten(repeat(list_I,1,16)))
+    list_I =collect(Iterators.flatten(repeat(list_I,1,4)))
 
     # list_I_py, list_J_py, list_val_py = py"py_warping_operator"(flow)
     # list_I_py = list_I_py.+1
     # list_J_py = list_J_py.+1
     # W_mat_py = sparse(list_I_py, list_J_py, list_val_py, H*W, H*W)
 
-    W_mat = sparse(list_I, list_J, list_val, H*W, H*W)
+    W_mat = dropzeros!(sparse(list_I, list_J, list_val, H*W, H*W))
 
     return LinearOperator(W_mat)
 end

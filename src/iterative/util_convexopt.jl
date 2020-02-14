@@ -88,7 +88,7 @@ function grad(u::Array{T, 3}) where {T<:AbstractFloat}
     return cat(ux, uy, uz, dims=3)
 end
 
-function div(p::Array{T, 3}) where {T<:AbstractFloat}
+function div(p::T) where {T<:AbstractArray}
     if size(p, 3) == 2
         return div2d(p[:,:,1], p[:,:,2])
     elseif size(p, 3) == 3

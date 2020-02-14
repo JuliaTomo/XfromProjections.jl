@@ -14,15 +14,15 @@ function get_tv_adjoints!(ops, b, ubar, w_tv, sigmas, p1, p2, H, W)
     #println(size(ubar), size(b), size(ops[1]))
     data1 = (ops[1]*vec(ubar) .- b)
     # p1 = proj_dual_l1(p1_ascent, w_data) # l1 norm
-    p1 = (p1 + sigmas[1] * data1) ./ (sigmas[1] + 1.0) # l2 norm
+    p1[:] = (p1 + sigmas[1] * data1) ./ (sigmas[1] + 1.0) # l2 norm
     p1_adjoint = reshape(ops[1]' * p1, H, W)
 
     data2 = ops[2]*ubar
-    p2 = p2 + sigmas[2]*data2
+    p2[:,:,:] = p2 + sigmas[2]*data2
     proj_dual_iso!(p2, w_tv)
     p2_adjoint = ops[2]' * p2
 
-    return data1, data2, p1, p2, p1_adjoint, p2_adjoint
+    return data1, data2, p1_adjoint, p2_adjoint
 end
 
 function _recon2d_tv_primaldual(ops, b, u0, niter, w_tv, sigmas, tau)
@@ -37,7 +37,7 @@ function _recon2d_tv_primaldual(ops, b, u0, niter, w_tv, sigmas, tau)
     for it=1:niter
         u_prev = deepcopy(u)
 
-        data1, data2, p1, p2, p1_adjoint, p2_adjoint = get_tv_adjoints!(ops, b, ubar, w_tv, sigmas, p1, p2, H, W)
+        data1, data2, p1_adjoint, p2_adjoint = get_tv_adjoints!(ops, b, ubar, w_tv, sigmas, p1, p2, H, W)
 
         p_adjoint = p1_adjoint + p2_adjoint
 
