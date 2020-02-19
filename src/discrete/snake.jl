@@ -74,7 +74,7 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
         #HACK
         cp = eliminate_loopy_stuff(centerline_points, 2*r(0.0))
         #HACK
-        if size(cp,1) > 2
+        if size(cp,1) > degree
             centerline_points = cp
         else
             @warn "Too loopy"
