@@ -93,6 +93,8 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
         #HACK
         if size(cp,1) > degree
             centerline_points = cp
+        else
+            @warn "Too loopy"
         end
         t = curve_lengths(centerline_points)
         #start = centerline_points[1,:]
