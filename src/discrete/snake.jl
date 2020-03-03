@@ -4,6 +4,7 @@ using Dierckx
 using IterTools
 using .snake_forward
 using .curve_utils
+using Plots
 #Reimplementation of Vedranas method with modifications.
 
 #VEDRANA MODIFIED
@@ -16,28 +17,17 @@ function displace(centerline_points, force, radius_func, w, w_u, w_l)
 
     upper_forces = forces[1:L,:]
     lower_forces = (forces[L+1:end, :])[end:-1:1,:]
-    #centerline_forces = (upper_forces.+lower_forces)./2#center_line force is average of outline force in both directions
+
     upper_points = outline_xy[1:L,:]
     lower_points = (outline_xy[L+1:end, :])[end:-1:1,:]
     displaced_upper_points = upper_points .+ w*(upper_forces.*w_u);
     displaced_lower_points = lower_points .+ w*(lower_forces.*w_l);
     displaced_centerline = (displaced_upper_points+displaced_lower_points)./2
+    #PLOT
+    f = cat(w*(upper_forces.*w_u), (w*(lower_forces.*w_l))[end:-1:1,:], dims = 1).*50
+    quiver!(outline_xy[:,1], outline_xy[:,2], quiver=(f[:,1], f[:,2]))
     return displaced_centerline
 end
-
-# function center_line_displacement(centerline_points, force, radius_func, weights)
-#     L = size(centerline_points,1)
-#     (outline_xy, normal) = get_outline(centerline_points, radius_func)
-#
-#     outline_normals = snake_normals(outline_xy)
-#     forces = force.*outline_normals
-#
-#     upper_forces = forces[1:L,:]
-#     lower_forces = (forces[L+1:end, :])[end:-1:1,:]
-#     centerline_forces = (upper_forces.+lower_forces)./2#center_line force is average of outline force in both directions
-#
-#     return centerline_forces.*weights
-# end
 
 function move_points(residual,curves,angles,N,centerline_points,r,w,w_u, w_l)
     (x_length, y_length) = size(residual)
@@ -56,8 +46,8 @@ function move_points(residual,curves,angles,N,centerline_points,r,w,w_u, w_l)
     end
 
     force = vals*(1/length(angles))
-    #displacements = center_line_displacement(centerline_points, force, r, weights)
-    centerline_points = displace(centerline_points, force, r, w, w_u, w_l)#centerline_points .+ w*displacements;
+
+    centerline_points = displace(centerline_points, force, r, w, w_u, w_l)
     return centerline_points
 end
 
@@ -83,7 +73,7 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
     mu = sum(sinogram_target[:].*current_sinogram[:])/sum(current_sinogram[:].^2)
     residual = sinogram_target - mu*current_sinogram
     N = size(current,1)
-
+    centerline_start = centerline_points[1,:]
     for iter  = 1:max_iter
         centerline_points = move_points(residual,curves,angles,N,centerline_points,r, w, w_u,w_l)
 
@@ -97,7 +87,7 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
             @warn "Too loopy"
         end
         t = curve_lengths(centerline_points)
-        #start = centerline_points[1,:]
+
         spl = ParametricSpline(t,centerline_points',k=degree, s=0.0)
         #HACK
         if smoothness > 0.0
@@ -110,9 +100,7 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
 
         tspl = range(0, t[end], length=L)
         centerline_points = collect(spl(tspl)')
-        #centerline_points[1,:] = start
-
-
+        centerline_points[1,:] = centerline_start
         (current, normal) = get_outline(centerline_points, r)
         current_sinogram = parallel_forward(current,angles,bins);
         curves = to_pixel_coordinates(current, angles, bins);
@@ -122,8 +110,7 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
     return centerline_points
 end
 
-function recon2d_tail(centerline_points::Array{T,2}, r, angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, smoothness::T, w::T, degree::Int64, w_u::Array{T}, w_l::Array{T}) where T<:AbstractFloat
-    N = size(centerline_points,1)-1
+function recon2d_tail(centerline_points::AbstractArray{T,2}, r, angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, smoothness::T, w::T, degree::Int64, w_u::Array{T}, w_l::Array{T}) where T<:AbstractFloat
     current = evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, w_u, w_l, smoothness, degree)
     return current
 end

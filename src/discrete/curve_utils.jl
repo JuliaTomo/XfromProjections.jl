@@ -42,7 +42,7 @@ function eliminate_loopy_stuff(curve, limit)
     L = size(curve,1)
     tokeep = collect(1:L)
     for i in subsets(1:L, 2)
-        #if the two points are npt neighbours, and the distance between them is less than the limit and the loop is longer than 4*limit
+        #if the two points are not neighbours, and the distance between them is less than the limit and the loop is longer than 4*limit
         if abs(i[1]-i[2]) > 2 && segment_length(curve[i[1],:], curve[i[2],:]) < limit && curve_lengths(curve[i[1]:i[2],:])[end] > 4*limit#limit
             filter!(keeper -> keeper < (i[1]+1) || keeper > (i[2]-1), tokeep)
         end
@@ -77,7 +77,7 @@ function closed_curve_to_binary_mat(curve::Array{T1,2}, xs::Array{T2,1}, ys::Arr
     i = 0
     for x in xs
         i += 1
-        j = 0#length(ys)+1
+        j = 0
         for y in ys
             j +=1
             result[j,i] = inpolygon(SVector(x,y), poly)

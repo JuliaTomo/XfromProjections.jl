@@ -142,6 +142,10 @@ function get_mid_and_tail(sinogram, ang, detector_distance, head; L = 20.0)
     return mid', tail'
 end
 
+w_u = ones(num_points)
+w_u[1] = 0.0
+w_l = ones(num_points)
+w_l[1] = 0.0
 for (i,t) in enumerate(frames)
     ang = angles[i]
     head = ground_truth[i][1,:]
@@ -162,7 +166,7 @@ for (i,t) in enumerate(frames)
     pl = plot(aspect_ratio=:equal)
     plot!(ground_truth[i][:,1], ground_truth[i][:,2], label="target", legend=:bottomleft)
     plot!(template[:,1], template[:,2], label="original")
-    recon = recon2d_tail(deepcopy(template),r,angles[:,i],bins,sinograms[:,:,i],3000, 0.0, 0.1, 1)
+    recon = recon2d_tail(deepcopy(template),r,angles[:,i],bins,sinograms[:,:,i],3000, 0.0, 0.1, 1, w_u, w_l)
     plot!(recon[:,1],recon[:,2], label ="result")
     push!(plots,pl)
     push!(recons,recon)
