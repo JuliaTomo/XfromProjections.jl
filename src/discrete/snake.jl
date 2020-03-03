@@ -7,8 +7,7 @@ using .curve_utils
 #Reimplementation of Vedranas method with modifications.
 
 #VEDRANA MODIFIED
-
-function center_line_displacement(centerline_points, force, radius_func, weights)
+function displace(centerline_points, force, radius_func, w, w_u, w_l)
     L = size(centerline_points,1)
     (outline_xy, normal) = get_outline(centerline_points, radius_func)
 
@@ -17,12 +16,30 @@ function center_line_displacement(centerline_points, force, radius_func, weights
 
     upper_forces = forces[1:L,:]
     lower_forces = (forces[L+1:end, :])[end:-1:1,:]
-    centerline_forces = (upper_forces.+lower_forces)./2#center_line force is average of outline force in both directions
-
-    return centerline_forces.*weights
+    #centerline_forces = (upper_forces.+lower_forces)./2#center_line force is average of outline force in both directions
+    upper_points = outline_xy[1:L,:]
+    lower_points = (outline_xy[L+1:end, :])[end:-1:1,:]
+    displaced_upper_points = upper_points .+ w*(upper_forces.*w_u);
+    displaced_lower_points = lower_points .+ w*(lower_forces.*w_l);
+    displaced_centerline = (displaced_upper_points+displaced_lower_points)./2
+    return displaced_centerline
 end
 
-function move_points(residual,curves,angles,N,centerline_points,r,w,weights)
+# function center_line_displacement(centerline_points, force, radius_func, weights)
+#     L = size(centerline_points,1)
+#     (outline_xy, normal) = get_outline(centerline_points, radius_func)
+#
+#     outline_normals = snake_normals(outline_xy)
+#     forces = force.*outline_normals
+#
+#     upper_forces = forces[1:L,:]
+#     lower_forces = (forces[L+1:end, :])[end:-1:1,:]
+#     centerline_forces = (upper_forces.+lower_forces)./2#center_line force is average of outline force in both directions
+#
+#     return centerline_forces.*weights
+# end
+
+function move_points(residual,curves,angles,N,centerline_points,r,w,w_u, w_l)
     (x_length, y_length) = size(residual)
     vals = zeros(Float64, N)
     if y_length > 1
@@ -39,8 +56,8 @@ function move_points(residual,curves,angles,N,centerline_points,r,w,weights)
     end
 
     force = vals*(1/length(angles))
-    displacements = center_line_displacement(centerline_points, force, r, weights)
-    centerline_points = centerline_points .+ w*displacements;
+    #displacements = center_line_displacement(centerline_points, force, r, weights)
+    centerline_points = displace(centerline_points, force, r, w, w_u, w_l)#centerline_points .+ w*displacements;
     return centerline_points
 end
 
@@ -58,7 +75,7 @@ function to_pixel_coordinates(current, angles, bins)
     return vertex_coordinates
 end
 
-function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, weights, smoothness, degree::Int64)
+function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, w_u, w_l, smoothness, degree::Int64)
     (current, normal) = get_outline(centerline_points, r)
     current_sinogram = parallel_forward(current,angles,bins)
 
@@ -68,7 +85,7 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
     N = size(current,1)
 
     for iter  = 1:max_iter
-        centerline_points = move_points(residual,curves,angles,N,centerline_points,r, w, weights)
+        centerline_points = move_points(residual,curves,angles,N,centerline_points,r, w, w_u,w_l)
 
         L = size(centerline_points,1)
         #HACK
@@ -105,12 +122,20 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
     return centerline_points
 end
 
+<<<<<<< HEAD
 function recon2d_tail(centerline_points::AbstractArray{T,2}, r, angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, smoothness::T, w::T, degree::Int64, weights::Array{T}) where T<:AbstractFloat
     N = size(centerline_points,1)-1
     #weights = ones(N+1)#collect(0:N)./N
     #weights[1] = 0
     #weights[end] = 0
     current = evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, weights, smoothness, degree)
+=======
+function recon2d_tail(centerline_points::Array{T,2}, r, angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, smoothness::T, w::T, degree::Int64, w_u::Array{T}, w_l::Array{T}) where T<:AbstractFloat
+    N = size(centerline_points,1)-1
+    # weights = ones(N+1)#collect(0:N)./N
+    # weights[1] = 0.0
+    current = evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, w_u, w_l, smoothness, degree)
+>>>>>>> 0fef381e9c0cde1c557b6aa4c51328f76284dd34
     return current
 end
 
