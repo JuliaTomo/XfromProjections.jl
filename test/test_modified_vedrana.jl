@@ -39,7 +39,7 @@ r(s) = 1.0
 
 H,W = 381,381 #true size
 
-nangles = 30
+nangles = 1
 #angles = [0,π/2]#rand(0.0:0.001:π, nangles)
 detcount = Int(floor(H*1.4))
 
@@ -57,13 +57,13 @@ for t in 1:num_frames
     plot( aspect_ratio=:equal,framestyle=:none, legend=false)
     #determine outline from skeleton
     outline, normals = get_outline(reshape(time_sequence[non_zeros,:,t], (length(non_zeros),2)), r)
-    angles[:,t] = rand(0.0:0.001:π, nangles)
+    angles[:,t] = [π/4]#rand(0.0:0.001:π, nangles)
     sinograms[:,:,t] = parallel_forward(outline, angles[:,t], bins)
     push!(ground_truth, outline)
 end
 
-tail_p = map(v -> 0.0-(v+0.0)*im, 0:2.5:18)
-template = hcat(real(tail_p), imag(tail_p))
+tail_p = map(v -> 0.0-(v+0.0)*im, 0:1.0:38)
+global template = hcat(real(tail_p), imag(tail_p))
 
 p1 = plot(aspect_ratio=:equal)
 plot!(ground_truth[1][:,1], ground_truth[1][:,2], label="target", legend=:bottomleft)
@@ -74,15 +74,21 @@ path = normpath(joinpath(cwd, "results"))
 cd(path)
 
 #
+L = size(tail_p,1)
+w_u = ones(L).+0.1
+w_u[1] = 0.0
+w_l = ones(L)
+w_l[1] = 0.0
 p1 = plot(aspect_ratio=:equal)
 plot!(template[:,1], template[:,2], label="original")
 p = Progress(num_frames, 1)
-anim = @animate for t = 1:num_frames
+anim = @animate for t = 1:1000
     plot(deepcopy(p1))
-    plot!(ground_truth[t][:,1], ground_truth[t][:,2], label="target", legend=:bottomleft)
-    recon = recon2d_tail(deepcopy(template),r,angles[:,t],bins,sinograms[:,:,t],1000, 0.0, 0.1, 1)
-    plot!(recon[:,1],recon[:,2], label ="result")
+    plot!(ground_truth[1][:,1], ground_truth[1][:,2], label="target", legend=:bottomleft)
+
+    global template = recon2d_tail(template,r,angles[:,1],bins,sinograms[:,:,1],1, 0.001, 0.2, 1, w_u, w_l)
+    plot!(template[:,1],template[:,2], label ="result")
     next!(p)
 end
-gif(anim,"recon_tail.gif", fps=1)
+gif(anim,"recon_tail.gif", fps=20)
 cd(cwd)
