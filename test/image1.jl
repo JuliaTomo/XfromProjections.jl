@@ -88,8 +88,8 @@ y_vals = rotate_points(translate_points(y_vals, [0.0 20.0]), angles[1])
 plot!(y_vals[10:end-250,1], y_vals[10:end-250,2], label="sinogram")
 n = 4000
 p = Progress(n, 1)
-recon = deepcopy(template)
-
+recon1 = deepcopy(template)
+recon2 = deepcopy(template)
 function find_largest_discrepancy(sino1,sino2)
     diff = abs.(sino1-sino2)
     i = argmax(diff)
@@ -99,25 +99,22 @@ end
 
 w_u = ones(num_points)
 w_u[1] = 0.0
-w_u[21:end] = zeros(10)
 w_l = ones(num_points)
-w_l[1:10] = zeros(10)
 w_l[1] = 0.0
 residual = 1000
 anim1 = @animate for i=1:n
     plot(deepcopy(plt))
-    if residual > 3
-        global recon = recon2d_tail(recon,r,angles,bins,sinogram,1, 0.001, 0.1, 1, w_u, w_l)
-    else
-        global recon = recon2d_tail(recon,r,angles,bins,sinogram,1, 0.0, 0.1, 1, w_u, w_l)
-    end
-    plot!(recon[:,1],recon[:,2], label="result")
-    outline, normals = get_outline(recon, r)
+    global recon1 = recon2d_tail(recon1,r,angles,bins,sinogram,1, 0.0, 0.1, 1, w_u, zeros(num_points))
+
+    global recon2 = recon2d_tail(recon2,r,angles,bins,sinogram,1, 0.0, 0.1, 1, zeros(num_points), w_l)
+    plot!(recon1[:,1],recon1[:,2], label="result1")
+    plot!(recon2[:,1],recon2[:,2], label="result2")
+    outline, normals = get_outline(recon1, r)
     s = parallel_forward(outline, angles, bins)
     global residual = norm(sinogram-s)
     y_vals = cat(bins,s,dims=2)
     y_vals = rotate_points(translate_points(y_vals, [0.0 20.0]), angles[1])
-    plot!(y_vals[10:end-250,1], y_vals[10:end-250,2], label="recon_sino")
+    plot!(y_vals[10:end-250,1], y_vals[10:end-250,2], label="recon_sino1")
     next!(p)
 end
 
