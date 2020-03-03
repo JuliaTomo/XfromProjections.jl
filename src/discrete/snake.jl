@@ -105,9 +105,11 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
     return centerline_points
 end
 
-function recon2d_tail(centerline_points::Array{T,2}, r, angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, smoothness::T, w::T, degree::Int64) where T<:AbstractFloat
+function recon2d_tail(centerline_points::AbstractArray{T,2}, r, angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, smoothness::T, w::T, degree::Int64, weights::Array{T}) where T<:AbstractFloat
     N = size(centerline_points,1)-1
-    weights = ones(N+1)#collect(0:N)./N
+    #weights = ones(N+1)#collect(0:N)./N
+    #weights[1] = 0
+    #weights[end] = 0
     current = evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, weights, smoothness, degree)
     return current
 end

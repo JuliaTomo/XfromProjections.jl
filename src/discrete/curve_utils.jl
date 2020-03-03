@@ -13,7 +13,7 @@ function normalize!(n)
     n[lindexes,:] = n[lindexes,:]./lengths[lindexes]
 end
 
-function snake_normals(curve)
+function snake_normals(curve::AbstractArray{T,2}) where T<:AbstractFloat
     X = cat(dims = 1, curve[end,:]', curve, curve[1,:]'); # extended S
     dX = X[1:end-1,:]-X[2:end,:]; # dX
     normals_edges = hcat(dX[:,2], -dX[:,1])
@@ -23,12 +23,12 @@ function snake_normals(curve)
     return normals_vertices
 end
 
-function segment_length(a::Array{Float64,1},b::Array{Float64,1})
+function segment_length(a::AbstractArray{T,1},b::AbstractArray{T,1}) where T<:AbstractFloat
     value = sqrt((a[1]-b[1])^2+(a[2]-b[2])^2)
     return value
 end
 
-function curve_lengths(arr::Array{Float64,2})
+function curve_lengths(arr::AbstractArray{T,2}) where T<:AbstractFloat
     result = Array{Float64,1}(undef,size(arr)[1])
     result[1]=0.0
     for i in 1:size(arr)[1]-1
