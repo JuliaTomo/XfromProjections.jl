@@ -13,7 +13,7 @@ using XfromProjections
 # using Dierckx
 using LinearAlgebra
 
-function translate_points(list_points::Array{T,2}, translation::Array{T,2}) where T<:AbstractFloat
+function translate_points(list_points::Array{T,2}, translation::AbstractArray{T,2}) where T<:AbstractFloat
     return list_points.+translation
 end
 
@@ -55,7 +55,7 @@ map(t -> time_sequence[2:end,:,t] = data[(t-1)*points+1:(t-1)*points+points,:], 
 r(s) = 1.0
 bins = collect(-38.0:0.125:38.0)
 
-frame_nr = 1
+frame_nr = 7
 nangles = 1
 angles = [π/2]
 
@@ -65,7 +65,7 @@ non_zeros = filter(j ->  any(v-> v !== 0.0, time_sequence[j,:,frame_nr]) ,1:poin
 prepend!(non_zeros,1)
 
 #determine outline from skeleton
-outline, normals = get_outline(reshape(time_sequence[non_zeros,:,1], (length(non_zeros),2)), r)
+outline, normals = get_outline(reshape(time_sequence[non_zeros,:,frame_nr], (length(non_zeros),2)), r)
 sinogram = parallel_forward(outline, angles, bins)
 ground_truth = reshape(time_sequence[non_zeros,:,frame_nr], (length(non_zeros),2))
 
@@ -86,7 +86,7 @@ y_vals = rotate_points(translate_points(y_vals, [0.0 20.0]), angles[1])
 
 
 plot!(y_vals[10:end-250,1], y_vals[10:end-250,2], label="sinogram")
-n = 4000
+n = 1000
 p = Progress(n, 1)
 recon1 = deepcopy(template)
 recon2 = deepcopy(template)
@@ -107,41 +107,51 @@ anim1 = @animate for i=1:n
     global recon1 = recon2d_tail(recon1,r,angles,bins,sinogram,1, 0.0, 0.1, 1, w_u, zeros(num_points))
 
     global recon2 = recon2d_tail(recon2,r,angles,bins,sinogram,1, 0.0, 0.1, 1, zeros(num_points), w_l)
-    plot!(recon1[:,1],recon1[:,2], label="result1")
-    plot!(recon2[:,1],recon2[:,2], label="result2")
-    outline, normals = get_outline(recon1, r)
-    s = parallel_forward(outline, angles, bins)
-    global residual = norm(sinogram-s)
-    y_vals = cat(bins,s,dims=2)
-    y_vals = rotate_points(translate_points(y_vals, [0.0 20.0]), angles[1])
-    plot!(y_vals[10:end-250,1], y_vals[10:end-250,2], label="recon_sino1")
+    plot!(recon1[:,1],recon1[:,2], label="upper")
+    plot!(recon2[:,1],recon2[:,2], label="lower")
+    outline1, normals = get_outline(recon1, r)
+    s1 = parallel_forward(outline1, angles, bins)
+    outline2, normals = get_outline(recon2, r)
+    s2 = parallel_forward(outline2, angles, bins)
+    residual_mirror = norm(s2-s1)
+    residual_1 = norm(sinogram-s1)
+    residual_2 = norm(sinogram-s2)
+
+    if residual_mirror < 10e-6 && residual_1 > 1 && residual_2 > 1 && residual_1 < 6 && residual_2 < 6
+        b1 = find_largest_discrepancy(sinogram, s1)
+        b2 = find_largest_discrepancy(sinogram, s2)
+        if norm(b1-b2) < 10e-6
+            angle = angles[1]
+            projection = [cos(angle) sin(angle)]'
+            vertex_coordinates1 = (recon1*projection)[:,1]
+            vertex_coordinates2 = (recon2*projection)[:,1]
+
+            v1 = findfirst(v -> v < b1, vertex_coordinates1)
+
+            v2 = findfirst(v -> v < b2, vertex_coordinates2)
+            if v1 > 1 && v1 < num_points && v2 > 1 && v2 < num_points
+                needed_translation1 = (recon1[v1,:]-recon2[v1+1,:].+0.1)'
+                needed_translation2 = (recon2[v2,:]-recon1[v2+1,:].+0.1)'
+                temp = deepcopy(recon1)
+                global recon1 = cat(recon1[1:v1,:], translate_points(recon2[(v1+1):end,:],needed_translation1), dims=1)
+                global recon2 = cat(recon2[1:v2,:], translate_points(temp[(v2+1):end,:],needed_translation2), dims=1)
+            end
+        end
+    end
+    #global residual = norm(sinogram-s1)
+    y_vals1 = cat(bins,s1,dims=2)
+    y_vals1 = rotate_points(translate_points(y_vals1, [0.0 20.0]), angles[1])
+    plot!(y_vals1[10:end-250,1], y_vals1[10:end-250,2], label="upper sinogram")
+    y_vals2 = cat(bins,s2,dims=2)
+    y_vals2 = rotate_points(translate_points(y_vals2, [0.0 20.0]), angles[1])
+    plot!(y_vals2[10:end-250,1], y_vals2[10:end-250,2], label="lower sinogram")
     next!(p)
 end
-
-# w_u = ones(num_points)
-# w_u[1] = 0.0
-# w_l = ones(num_points)
-# w_l[1] = 0.0
-#
-# anim1 = @animate for i=1:n
-#     plot(deepcopy(plt))
-#     global recon = recon2d_tail(recon,r,angles,bins,sinogram,1, 0.001, 0.1, 1, w_u, w_l)
-#     plot!(recon[:,1],recon[:,2], label="result")
-#     outline, normals = get_outline(recon, r)
-#     s = parallel_forward(outline, angles, bins)
-#     y_vals = cat(bins,s,dims=2)
-#     y_vals = rotate_points(translate_points(y_vals, [0.0 20.0]), angles[1])
-#     plot!(y_vals[10:end-250,1], y_vals[10:end-250,2], label="recon_sino")
-#     next!(p)
-# end
-
-#flip
-
 
 cwd = @__DIR__
 path = normpath(joinpath(@__DIR__, "results"))
 cd(path)
-gif(anim1, "evolution1.gif", fps = 40)
+gif(anim1, "evolution1.gif", fps = 10)
 cd(cwd)
 
 plot!()
