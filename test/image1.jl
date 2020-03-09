@@ -72,15 +72,15 @@ for frame_nr = 1:10
     template_x = zeros(num_points)
     template = cat(template_x, template_y, dims = 2)
 
-    plt = plot(template[:,1], template[:,2], aspect_ratio=:equal, label="template")
-    plot!(outline[:,1], outline[:,2], label = "target")
+    plt = plot(template[:,1], template[:,2], aspect_ratio=:equal, label="template", framestyle=:none, color=:black, legend=false, size=(400,400))
+    plot!(outline[:,1], outline[:,2], label = "target", color=:green)
 
     x_line = cat(bins,zeros(length(bins)),dims=2)
     y_vals = cat(bins,sinogram,dims=2)
     x_line = rotate_points(translate_points(x_line, [0.0 20.0]), angles[1])
     y_vals = rotate_points(translate_points(y_vals, [0.0 20.0]), angles[1])
 
-    plot!(y_vals[10:end-250,1], y_vals[10:end-250,2], label="sinogram")
+
     n = 5000
     recon1 = deepcopy(template)
     recon2 = deepcopy(template)
@@ -130,8 +130,8 @@ for frame_nr = 1:10
 
     end
 
-    plot!(recon1[:,1],recon1[:,2], label="upper")
-    plot!(recon2[:,1],recon2[:,2], label="lower")
+    plot!(recon1[:,1],recon1[:,2], label="upper", color=:red)
+    plot!(recon2[:,1],recon2[:,2], label="lower", color=:blue)
 
     outline1, normals = get_outline(recon1, r)
     s1 = parallel_forward(outline1, angles, bins)
@@ -140,11 +140,11 @@ for frame_nr = 1:10
 
     y_vals1 = cat(bins,s1,dims=2)
     y_vals1 = rotate_points(translate_points(y_vals1, [0.0 20.0]), angles[1])
-    plot!(y_vals1[10:end-250,1], y_vals1[10:end-250,2], label="upper sinogram")
+    plot!(y_vals1[10:end-250,1], y_vals1[10:end-250,2], label="upper sinogram", fill = (0, 0.2, :red), color=:white)
     y_vals2 = cat(bins,s2,dims=2)
     y_vals2 = rotate_points(translate_points(y_vals2, [0.0 20.0]), angles[1])
-    plot!(y_vals2[10:end-250,1], y_vals2[10:end-250,2], label="lower sinogram")
-
+    plot!(y_vals2[10:end-250,1], y_vals2[10:end-250,2], label="lower sinogram", fill = (0, 0.2, :blue), color=:white)
+    plot!(y_vals[10:end-250,1], y_vals[10:end-250,2], label="sinogram", color=:green)
     path = normpath(joinpath(@__DIR__, "results"))
     cd(path)
     savefig(@sprintf "frame_%d" frame_nr)#gif(anim1, "evolution1.gif", fps = 10)

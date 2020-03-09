@@ -25,7 +25,7 @@ function displace(centerline_points, force, radius_func, w, w_u, w_l)
     displaced_centerline = (displaced_upper_points+displaced_lower_points)./2
     #PLOT
     f = cat(w*(upper_forces.*w_u), (w*(lower_forces.*w_l))[end:-1:1,:], dims = 1).*50
-    quiver!(outline_xy[:,1], outline_xy[:,2], quiver=(f[:,1], f[:,2]))
+    quiver!(outline_xy[:,1], outline_xy[:,2], quiver=(f[:,1], f[:,2]), color=:gray)
     return displaced_centerline
 end
 

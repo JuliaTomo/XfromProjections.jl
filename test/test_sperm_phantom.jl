@@ -5,6 +5,7 @@ using ProgressMeter
 using XfromProjections.curve_utils
 using Printf
 using Measures
+using Colors
 
 cwd = @__DIR__
 path = normpath(joinpath(@__DIR__, "phantoms"))
@@ -27,33 +28,38 @@ dims = 2
 points = 38#40
 
 #convert to time sequence (last dimension is frames)
-time_sequence = zeros(points,dims,frames)
-map(t -> time_sequence[:,:,t] = data[(t-1)*points+1:(t-1)*points+points,:], 1:frames)
+time_sequence = zeros(points+1,dims,frames)
+map(t -> time_sequence[2:end,:,t] = data[(t-1)*points+1:(t-1)*points+points,:], 1:frames)
 
-p = Progress(length(1:frames),1, "Animating")
+p = Progress(length(1:5),1, "Animating")
 r(s) = 1.0
 #Pick every 10th frame to match sampling at synkrotron
 path = normpath(joinpath(@__DIR__, "results"))
 cd(path)
 plots = AbstractPlot[]
-for t=1:5
+theme(:default)
+pl = plot( aspect_ratio=:equal,framestyle=:none, legend=false, linecolor=:grayscale)
+for t=1:10
     #Remove all zero rows (missing data points)
     non_zeros = filter(i ->  any(v-> v !== 0.0, time_sequence[i,:,t]) ,1:points)
-    pl = plot( aspect_ratio=:equal,framestyle=:none, legend=false)
+    prepend!(non_zeros,1)
+    #
     #determine outline from skeleton
-    outline, normals = get_outline(reshape(time_sequence[non_zeros,:,t], (length(non_zeros),2)), r)
+    center_line = reshape(time_sequence[non_zeros,:,t], (length(non_zeros),2))
+    #outline, normals = get_outline(reshape(time_sequence[non_zeros,:,t], (length(non_zeros),2)), r)
     #close the curve
-    outline = cat(outline, outline[1,:]', dims=1)
+    #outline = cat(outline, outline[1,:]', dims=1)
     #convert to binary image
-    mat = closed_curve_to_binary_mat(outline,collect(-38.0:0.125:38.0),collect(-38.0:0.125:38.0))
-    plot!(Gray.(mat), title=@sprintf "t=%d" t)
-    push!(plots, pl)
-    savefig(@sprintf "Non-hyper_%d" t)
+    #mat = closed_curve_to_binary_mat(outline,collect(-38.0:0.125:38.0),collect(-38.0:0.125:38.0))
+    #plot!(Gray.(mat), title=@sprintf "t=%d" t)
+    #push!(plots, pl)
+    #savefig(@sprintf "Non-hyper_%d" t)
+    plot!(center_line[:,1], center_line[:,2], color=Gray(t/15))
     next!(p)
 end
 
 l = @layout[a b c d e]
-plot(plots..., layout = l, size=(1200,250), margin_left=0mm, margin_right=0mm)
+plot(pl)#plots..., layout = l, size=(1200,250), margin_left=0mm, margin_right=0mm)
 # path = normpath(joinpath(@__DIR__, "results"))
 # cd(path)
 # #gif(anim, "hyper_active_sperm_phanton.gif", fps = 10) #500 fps is true frame rate
