@@ -15,16 +15,24 @@ function displace(centerline_points, force, radius_func, w, w_u, w_l)
     outline_normals = snake_normals(outline_xy)
     forces = force.*outline_normals
 
-    upper_forces = forces[1:L,:]
-    lower_forces = (forces[L+1:end, :])[end:-1:1,:]
+    mid = Int64(size(outline_xy,1)/2)#always even
+    upper_forces = forces[1:mid,:]
+    lower_forces = (forces[mid+1:end, :])[end:-1:1,:]
 
-    upper_points = outline_xy[1:L,:]
-    lower_points = (outline_xy[L+1:end, :])[end:-1:1,:]
+    upper_points = outline_xy[1:mid,:]
+    lower_points = (outline_xy[mid+1:end, :])[end:-1:1,:]
+
     displaced_upper_points = upper_points .+ w*(upper_forces.*w_u);
     displaced_lower_points = lower_points .+ w*(lower_forces.*w_l);
-    displaced_centerline = (displaced_upper_points+displaced_lower_points)./2
-    #PLOT
-    f = cat(w*(upper_forces.*w_u), (w*(lower_forces.*w_l))[end:-1:1,:], dims = 1).*50
+    displaced_centerline = zeros(L,2)
+    # println(size(displaced_centerline[2:end-1,:]))
+    # println(size(displaced_upper_points[3:end-2,:]))
+    # println(size(displaced_lower_points[3:end-2,:]))
+    displaced_centerline[2:end-1,:] = (displaced_upper_points[3:end-2,:]+displaced_lower_points[3:end-2,:])./2
+    displaced_centerline[1,:] = (displaced_upper_points[1,:]+displaced_lower_points[1,:]+displaced_upper_points[2,:]+displaced_lower_points[2,:])./4
+    displaced_centerline[L,:] = (displaced_upper_points[end,:]+displaced_lower_points[end,:]+displaced_upper_points[end-1,:]+displaced_lower_points[end-1,:])./4
+    #PLO
+    f = cat(w*(upper_forces.*w_u), (w*(lower_forces.*w_l))[end:-1:1,:], dims = 1).*25
     quiver!(outline_xy[:,1], outline_xy[:,2], quiver=(f[:,1], f[:,2]), color=:gray)
     return displaced_centerline
 end

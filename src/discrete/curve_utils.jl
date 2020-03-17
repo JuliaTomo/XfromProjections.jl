@@ -63,7 +63,15 @@ function get_outline(centerline_points, radius_func)
     ronsplinetop = spl(tspl)'.+(radii.*normal)
     ronsplinebot = (spl(tspl)'.-(radii.*normal))[end:-1:1,:]
 
-    outline_xy = cat(ronsplinetop, ronsplinebot, dims=1)
+    head = centerline_points[1,:]
+    tail = centerline_points[L,:]
+
+    endpointtop = cat(head',ronsplinetop, dims=1)
+    endpointtop = cat(endpointtop, tail', dims=1)
+    endpointbot = cat(tail',ronsplinebot, dims=1)
+    endpointbot = cat(endpointbot, head', dims=1)
+
+    outline_xy = cat(endpointtop, endpointbot, dims=1)
     return (outline_xy, normal)
 end
 
