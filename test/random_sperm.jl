@@ -57,19 +57,19 @@ function is_in(C::Vector, radius::Float64)
 end
 
 #NEEDS TESTING
-function sperm_feasible_region(projection::Array{T,1}, previous_sperm::Array{T,2}, ang::T, bins::Array{T,1}) where T<:AbstractFloat
+function sperm_feasible_region(projection::Array{T,1}, previous_sperm::Array{T,2}, ang::T, bins::Array{T,1}, r) where T<:AbstractFloat
     L = curve_lengths(previous_sperm)[end]
     head = previous_sperm[end,:]
     neck = previous_sperm[end-1,:]
     d = neck - head
-    perp = π/2
+    perp = π/4
     rot = [cos(perp) sin(perp); -sin(perp) cos(perp)]
-    #Line perpendicular to previous sperms neck (A,B)
+
     l1 = is_in(head, (d'*rot)')
 
     #Get left and right side - should account for noise soon
-    b1 = findfirst(v -> v!= 0.0, projection)
-    b2 = findlast(v -> v!= 0.0, projection)
+    b1 = findfirst(p -> p > 2*r(0.0), projection)
+    b2 = findlast(p -> p > 2*r(0.0), projection)
     x_1= bins[b1]
     x_2= bins[b2]
 
@@ -91,8 +91,8 @@ function sperm_feasible_region(projection::Array{T,1}, previous_sperm::Array{T,2
     return f(p) = l1(p) && l2(p) && l3(p) && d(p)
 end
 
-function generate_random_sperm(projection::Array{T,1}, previous_sperm::Array{T,2}, ang::T, bins::Array{T,1}, n::Int64) where T <:AbstractFloat
-    feasible_region = sperm_feasible_region(projection, previous_sperm, ang, bins)
+function generate_random_sperm(projection::Array{T,1}, previous_sperm::Array{T,2}, ang::T, bins::Array{T,1}, r, n::Int64) where T <:AbstractFloat
+    feasible_region = sperm_feasible_region(projection, previous_sperm, ang, bins, r)
     allowed_angle = π/3
     L = curve_lengths(previous_sperm)[end]
     seg_l = L/n
@@ -127,7 +127,12 @@ function generate_random_sperm(projection::Array{T,1}, previous_sperm::Array{T,2
         end
         points[i,:] = p
     end
-    return points
+    points = eliminate_loopy_stuff(points, 2*(r(0.0)))
+    L = size(points,1)
+    t = curve_lengths(points)
+    spl = ParametricSpline(t,points',k=2, s=3.0)
+    tspl = range(0, t[end], length=L)
+    return spl(tspl)'
 end
 
 # cp = [-0.0, -0.5]

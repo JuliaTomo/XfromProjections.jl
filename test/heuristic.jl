@@ -117,27 +117,44 @@ function findMinAvgSubarray(arr, k)
 
     return result_index
 end
-
+#TODO add tail length and projection length to estimate the tail end point - two possibilities pick smoothest one
 function best_parts(residual, centerline_points, ang, bins, k)
-    halfwaypoint = Int64(round(size(centerline_points,1)/2))
+    first_third = Int64(round(size(centerline_points,1)/3))
+    second_third = Int64(round(2*size(centerline_points,1)/3))
 
-    head_half = centerline_points[1:halfwaypoint,:]
-    tail_half = centerline_points[halfwaypoint+1:end,:]
+    head = centerline_points[1:first_third,:]
+    mid = centerline_points[first_third+1:second_third,:]
+    tail = centerline_points[second_third+1:end,:]
 
     magnitude = abs.(residual)
 
     F = Spline1D(bins, magnitude[:,1]);
 
     projection = [cos(ang) sin(ang)]'
-    projected_head_part = (head_half*projection)[:,1]
+    projected_head_part = (head*projection)[:,1]
     interp_head_residuals = F(projected_head_part)
 
-    projected_tail_part = (head_half*projection)[:,1]
+    projected_mid_part = (mid*projection)[:,1]
+    interp_mid_residuals = F(projected_mid_part)
+
+    projected_tail_part = (tail*projection)[:,1]
     interp_tail_residuals = F(projected_tail_part)
 
     idx_best_head_part_start = findMinAvgSubarray(interp_head_residuals, k)
-    idx_best_tail_part_start = findMinAvgSubarray(interp_head_residuals, k)
-    return head_half[idx_best_head_part_start:idx_best_head_part_start+k-1,:], tail_half[idx_best_tail_part_start:idx_best_tail_part_start+k-1,:]
+    idx_best_mid_part_start = findMinAvgSubarray(interp_mid_residuals, k)
+    idx_best_tail_part_start = findMinAvgSubarray(interp_tail_residuals, k)
+    head_indexes = unique(prepend!(collect(idx_best_head_part_start:idx_best_head_part_start+k-1),1))
+    return cat(head[head_indexes,:], mid[idx_best_mid_part_start:idx_best_mid_part_start+k-1,:], tail[idx_best_tail_part_start:idx_best_tail_part_start+k-1,:], dims=1)
+end
+
+function keep_best_parts(residual, tail, ang, bins, k, num_points)
+    best = best_parts(residual, tail, ang, bins, k)
+    t = curve_lengths(best)
+    #create spline
+    spl = ParametricSpline(t,best', k=2, s=2.0)
+
+    tspl = range(0, t[end], length=num_points)
+    return spl(tspl)'
 end
 
 function translate_points(list_points::Array{T,2}, translation::AbstractArray{T,2}) where T<:AbstractFloat
@@ -192,13 +209,20 @@ grid = collect(detmin:0.1:detmax)
 bins = collect(detmin:0.125:detmax)
 
 ang = π/2
-angles, max_iter, stepsize = [ang], 20000, 0.1
+angles, max_iter, stepsize = [ang], 10000, 0.1
 tail_length = curve_lengths(tracks[end])[end]
 num_points = 30
 r(s) = 1.0
-for frame_nr = 1:10
+max_jiter = 100
+frames2reconstruct = collect(1:10)
+reconstructions = zeros(num_points,2,length(frames2reconstruct))
+while !isempty(frames2reconstruct)
+    frame_nr = pop!(frames2reconstruct)
+    jiter = 0
+
+
     #Get projection
-    @info "making forward projection"
+    @info "making forward projection for frame: " frame_nr
     outline, normals = get_outline(tracks[frame_nr], r)
     projection = parallel_forward(outline, [ang], bins)
 
@@ -209,14 +233,6 @@ for frame_nr = 1:10
     e = rho*norm(projection)*e/norm(e);
     projection = projection + e;
 
-    #Setup template
-    @info "setting up template"
-    # template_y = range(0.0, -30.0, length=num_points)
-    # template_x = zeros(num_points)
-    template = get_straight_template(projection[:,1], r, [0.0 0.0], ang, num_points,bins)#cat(template_x, template_y, dims = 2)
-
-    recon1 = deepcopy(template)
-    recon2 = deepcopy(template)
     angles = [ang]
 
     w_u = ones(num_points+2)
@@ -226,26 +242,66 @@ for frame_nr = 1:10
     w_l[1] = 0.0
     w_l[2] = 0.0
 
-    @info "reconstructing"
-    recon1 = recon2d_tail(recon1,r,angles,bins,projection,max_iter, 0.0, stepsize, 1, w_u, zeros(num_points+2))
-    recon2 = recon2d_tail(recon2,r,angles,bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w_l)
+    recon1_ok = false
+    recon2_ok = false
 
-    residual1 = parallel_forward(get_outline(recon1, r)[1], [ang], bins) - projection
-    residual2 = parallel_forward(get_outline(recon2, r)[1], [ang], bins) - projection
+    best_residual = Inf
 
+    while best_residual > 1.5 && jiter < max_jiter
+        jiter += 1
+        @info jiter
+        @info "setting up template"
+        template = generate_random_sperm(projection[:,1], tracks[frame_nr+10], ang, bins, r, num_points)
+
+        @info "calculating initial reconstruction"
+        recon1 = recon2d_tail(deepcopy(template),r,angles,bins,projection,max_iter, 0.0, stepsize, 1, w_u, zeros(num_points+2))
+        recon2 = recon2d_tail(deepcopy(template),r,angles,bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w_l)
+
+        residual1 = parallel_forward(get_outline(recon1, r)[1], [ang], bins) - projection
+        residual2 = parallel_forward(get_outline(recon2, r)[1], [ang], bins) - projection
+
+        @info "keeping the best parts and restarting reconstruction"
+        recon1 = keep_best_parts(residual1, deepcopy(recon1), ang, bins, 3, num_points)
+        recon2 = keep_best_parts(residual2, deepcopy(recon2), ang, bins, 3, num_points)
+
+        recon1 = recon2d_tail(deepcopy(recon1),r,angles,bins,projection,max_iter, 0.0, stepsize, 1, w_u, zeros(num_points+2))
+        recon2 = recon2d_tail(deepcopy(recon2),r,angles,bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w_l)
+
+        ok1 = could_be_sperm_tail(tail_length, recon1)
+        ok2 = could_be_sperm_tail(tail_length, recon2)
+        recon1_ok = ok1 && norm(residual1) < 2.5
+        recon2_ok = ok2 && norm(residual2) < 2.5
+        @info ok1 norm(residual1)
+        @info ok2 norm(residual2)
+
+        if ok1 && norm(residual1) < best_residual
+            reconstructions[:,:,frame_nr] = recon1
+            best_residual = norm(residual1)
+        end
+
+        if ok2 && norm(residual2) < best_residual
+            reconstructions[:,:,frame_nr] = recon2
+            best_residual = norm(residual2)
+        end
+    end
+    recon1 = reconstructions[:,:,frame_nr]
     @info "plotting"
-    heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none, legend=false)
-    head_part, tail_part = best_parts(residual1, recon1, ang, bins, 5)
-    scatter!(head_part[:,1], head_part[:,2], label="best head")
-    scatter!(tail_part[:,1], tail_part[:,2], label="best tail")
-    head_part, tail_part = best_parts(residual2, recon2, ang, bins, 5)
-    scatter!(head_part[:,1], head_part[:,2], label="best head")
-    scatter!(tail_part[:,1], tail_part[:,2], label="best tail")
-    plot!(recon1[:,1], recon1[:,2], aspect_ratio=:equal, label="reconstruction")
-    plot!(recon2[:,1], recon2[:,2], aspect_ratio=:equal, label="reconstruction")
-    plot!(template[:,1], template[:,2], aspect_ratio=:equal, label="template")
+    heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none)
+    # head_part, mid_part, tail_part = best_parts(residual1, deepcopy(reconstructions[]), ang, bins, 3)
+    # scatter!(head_part[:,1], head_part[:,2], label="best head")
+    # scatter!(tail_part[:,1], tail_part[:,2], label="best tail")
+    # scatter!(mid_part[:,1], mid_part[:,2], label="best mid")
 
-    savefig(@sprintf "short_parts_%d" frame_nr)
+    # head_part, mid_part, tail_part = best_parts(residual2, deepcopy(recon2), ang, bins, 3)
+    # scatter!(head_part[:,1], head_part[:,2], label="best head")
+    # scatter!(tail_part[:,1], tail_part[:,2], label="best tail")
+    # scatter!(mid_part[:,1], mid_part[:,2], label="best mid")
+
+    plot!(recon1[:,1], recon1[:,2], aspect_ratio=:equal, label=best_residual)
+    # plot!(recon2[:,1], recon2[:,2], aspect_ratio=:equal, label=norm(residual2))
+    # plot!(template[:,1], template[:,2], aspect_ratio=:equal, label="template")
+
+    savefig(@sprintf "best_parts_%d" frame_nr)
 end
 
 
