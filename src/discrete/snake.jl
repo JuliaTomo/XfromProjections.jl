@@ -4,7 +4,7 @@ using Dierckx
 using IterTools
 using .snake_forward
 using .curve_utils
-using Plots
+#using Plots
 #Reimplementation of Vedranas method with modifications.
 
 #VEDRANA MODIFIED
@@ -32,8 +32,8 @@ function displace(centerline_points, force, radius_func, w, w_u, w_l)
     displaced_centerline[1,:] = (displaced_upper_points[1,:]+displaced_lower_points[1,:]+displaced_upper_points[2,:]+displaced_lower_points[2,:])./4
     displaced_centerline[L,:] = (displaced_upper_points[end,:]+displaced_lower_points[end,:]+displaced_upper_points[end-1,:]+displaced_lower_points[end-1,:])./4
     #PLO
-    f = cat(w*(upper_forces.*w_u), (w*(lower_forces.*w_l))[end:-1:1,:], dims = 1).*25
-    quiver!(outline_xy[:,1], outline_xy[:,2], quiver=(f[:,1], f[:,2]), color=:gray)
+    # f = cat(w*(upper_forces.*w_u), (w*(lower_forces.*w_l))[end:-1:1,:], dims = 1).*25
+    # quiver!(outline_xy[:,1], outline_xy[:,2], quiver=(f[:,1], f[:,2]), color=:gray)
     return displaced_centerline
 end
 
