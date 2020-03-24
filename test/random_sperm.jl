@@ -127,8 +127,9 @@ function generate_random_sperm(projection::Array{T,1}, previous_sperm::Array{T,2
         end
         points[i,:] = p
     end
-    points = eliminate_loopy_stuff(points, 2*(r(0.0)))
     L = size(points,1)
+    points = eliminate_loopy_stuff(points, 2*(r(0.0)))
+
     t = curve_lengths(points)
     spl = ParametricSpline(t,points',k=2, s=3.0)
     tspl = range(0, t[end], length=L)

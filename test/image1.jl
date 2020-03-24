@@ -54,10 +54,10 @@ bins = collect(-38.0:0.125:38.0)
 cwd = @__DIR__
 p = Progress(10, 1)
 L = curve_lengths(time_sequence[1:end,:,1])
-for frame_nr = 1:10
+for frame_nr = 1:1
 #frame_nr = 2
     nangles = 1
-    angles = [π/2]
+    angles = [π/2]#[3*π/4]
 
 
     #Remove all zero rows (missing data points)

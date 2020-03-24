@@ -213,7 +213,7 @@ angles, max_iter, stepsize = [ang], 10000, 0.1
 tail_length = curve_lengths(tracks[end])[end]
 num_points = 30
 r(s) = 1.0
-max_jiter = 100
+max_jiter = 20
 frames2reconstruct = collect(1:10)
 reconstructions = zeros(num_points,2,length(frames2reconstruct))
 while !isempty(frames2reconstruct)
