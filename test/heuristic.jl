@@ -82,6 +82,8 @@ function could_be_sperm_tail(tail_length, centerline_points)
     tspl = range(0, t[end], length=L)
     smoothed = spl(tspl)'
 
+    #plot!(smoothed[:,1], smoothed[:,2])
+
     prime = derivative(spl,tspl, nu=1)'
     primeprime = derivative(spl,tspl, nu=2)'
 
@@ -92,7 +94,7 @@ function could_be_sperm_tail(tail_length, centerline_points)
     length_ok = t[end] <= tail_length+0.1*tail_length && t[end] >= tail_length-0.1*tail_length
 
     #tail is within +/- 10% estimated length, and curvature changes sign at most once.
-    return cuvature_changes <= 1 && length_ok
+    return cuvature_changes, k
 end
 
 function findMinAvgSubarray(arr, k)
@@ -171,10 +173,15 @@ function keep_best_parts(residual, centerline_points, ang, bins, k, num_points, 
     ac = estimate_projected_length(projection, ang, r, bins)-estimate_projected_length(fp[:,1], ang, r, bins)
     if ab > 0.0 && ac > 0.0
         a = best[end,:]
-        detector = [-cos(ang), -sin(ang)]
+        a_prev = best[end-1,:]
+        detector = [cos(ang), sin(ang)]
         ray = [sin(ang), -cos(ang)]
-        c = a+detector*ac
-        b = c+ray*ab
+        cplus = a+detector*ac
+        cminus = a-detector*ac
+        c = norm(cplus-a_prev) > norm(cminus-a_prev) ? cplus : cminus
+        bplus = c+ray*ab
+        bminus = c-ray*ab
+        b = norm(bplus-a_prev) > norm(bminus-a_prev) ? bplus : bminus
         best = cat(best,b', dims=1)
     end
     #create spline
@@ -224,11 +231,42 @@ function get_straight_template(projection, r, head, ang, num_points,bins)
     return head.+projector'.*collect(range(0.0,projected_distance,length=num_points))
 end
 
+function reflection(v,l)
+    return 2*(v*l./dot(l,l)).*repeat(l',size(v,1))-v
+end
+
+function try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+    residual1 = parallel_forward(get_outline(recon1, r)[1], [ang], bins) - projection
+    residual2 = parallel_forward(get_outline(recon2, r)[1], [ang], bins) - projection
+    ok1, k = could_be_sperm_tail(tail_length, recon1)
+    ok2, k = could_be_sperm_tail(tail_length, recon2)
+    if ok1 <= 1 && norm(residual1) < best_residual
+        best_residual = norm(residual1)
+        best_recon = recon1
+    end
+
+    if ok2 <= 1 && norm(residual2) < best_residual
+        best_residual = norm(residual2)
+        best_recon = recon2
+    end
+
+    return best_residual, best_recon, residual1, residual2
+end
+
+function flip(centerline_points, flip_point, ang)
+    reflected = reflection(centerline_points[flip_point:end,:], [cos(ang), sin(ang)])
+    first_part = centerline_points[1:flip_point-1,:]
+    needed_translation = centerline_points[flip_point,:]-reflected[1,:]
+    translated_and_reflected = reflected.+needed_translation'
+    return cat(first_part, translated_and_reflected, dims=1)
+end
+
+
 using Plots
 using Colors
 cwd = @__DIR__
-savepath = normpath(joinpath(@__DIR__, "results"))
-cd(savepath)
+savepath = normpath(joinpath(@__DIR__, "results/mirror_test/"))
+
 
 images, tracks = get_sperm_phantom(21,grid_size=0.1)
 
@@ -236,12 +274,12 @@ detmin, detmax = -38.0, 38.0
 grid = collect(detmin:0.1:detmax)
 bins = collect(detmin:0.125:detmax)
 
-ang = π/2
+ang = 2*π/3
 angles, max_iter, stepsize = [ang], 10000, 0.1
 tail_length = curve_lengths(tracks[end])[end]
 num_points = 30
 r(s) = 1.0
-max_jiter = 20
+max_jiter = 1
 frames2reconstruct = collect(1:10)
 reconstructions = zeros(num_points,2,length(frames2reconstruct))
 missed = zeros(num_points,2,length(frames2reconstruct))
@@ -280,94 +318,91 @@ while !isempty(frames2reconstruct)
     recon2_ok = false
 
     best_residual = Inf
-    best_diff = Inf
-    while best_residual > 1.5 && jiter < max_jiter
+    best_recon = zeros(num_points,2)
+    while jiter < max_jiter # && best_residual > 1.5
+
+        cd(savepath)
         jiter += 1
         @info jiter
         @info "setting up template"
-        template = generate_random_sperm(projection[:,1], tracks[frame_nr+10], ang, bins, r, num_points)
+        template = jiter==1 ? get_straight_template(projection[:,1], r, [0.0 0.0], ang, num_points,bins) : generate_random_sperm(projection[:,1], tracks[frame_nr+10], ang, bins, r, num_points)
 
         @info "calculating initial reconstruction"
-        recon1 = recon2d_tail(deepcopy(template),r,angles,bins,projection,max_iter, 0.0, stepsize, 1, w_u, zeros(num_points+2))
-        recon2 = recon2d_tail(deepcopy(template),r,angles,bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w_l)
+        #Reconstruct with weights only on one side
+        recon1 = recon2d_tail(deepcopy(template),r,[ang],bins,projection,max_iter, 0.0, stepsize, 1, w_u, zeros(num_points+2))
+        recon2 = recon2d_tail(deepcopy(template),r,[ang],bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w_l)
+        best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+        #plot
+        # heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none)
+        # plot!(template[:,1], template[:,2], aspect_ratio=:equal, label="template")
+        # plot!(recon1[:,1], recon1[:,2], aspect_ratio=:equal, label=best_residual)
+        # plot!(recon2[:,1], recon2[:,2], aspect_ratio=:equal, label=best_residual)
+        # savefig(@sprintf "mirror_test_intermediate_%d" frame_nr)
 
-        residual1 = parallel_forward(get_outline(recon1, r)[1], [ang], bins) - projection
-        residual2 = parallel_forward(get_outline(recon2, r)[1], [ang], bins) - projection
+        @info "checking if any parts could need mirroring"
+        initial1 = deepcopy(recon1)
+        initial2 = deepcopy(recon2)
+        for flip_pt=1:num_points
+            last_residual1, last_residual2 = residual1, residual2
+            recon1_flipped = flip(initial1,flip_pt,ang)
+            recon2_flipped = flip(initial2,flip_pt,ang)
+            #mirror and reconstruct with weights on both sides
+            recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w_u, w_l)
+            recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w_u, w_l)
 
-        heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none)
-        plot!(recon1[:,1], recon1[:,2], aspect_ratio=:equal, label="best1")
-        plot!(recon2[:,1], recon2[:,2], aspect_ratio=:equal, label="best2")
-        savefig(@sprintf "test0_%d" frame_nr)
+            best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+            if norm(last_residual1) > norm(residual1) || norm(residual2) < norm(last_residual2)
+                @info "IMPROVEMENT!"
+            end
 
-        ok1 = could_be_sperm_tail(tail_length, recon1)
-        ok2 = could_be_sperm_tail(tail_length, recon2)
-        recon1_ok = ok1 && norm(residual1) < 2.5
-        recon2_ok = ok2 && norm(residual2) < 2.5
-        @info ok1 norm(residual1)
-        @info ok2 norm(residual2)
-
-        if ok1 && norm(residual1) < best_residual
-            reconstructions[:,:,frame_nr] = recon1
-            best_residual = norm(residual1)
-        elseif norm(gt-recon1) < best_diff
-            missed[:,:,frame_nr] = recon1
-            best_diff = norm(gt-recon1)
-        end
-
-        if ok2 && norm(residual2) < best_residual
-            reconstructions[:,:,frame_nr] = recon2
-            best_residual = norm(residual2)
-        elseif norm(gt-recon2) < best_diff
-            missed[:,:,frame_nr] = recon2
-            best_diff = norm(gt-recon2)
+            #plot
+            # heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none)
+            # plot!(template[:,1], template[:,2], aspect_ratio=:equal, label="template")
+            # plot!(recon1[:,1], recon1[:,2], aspect_ratio=:equal, label=norm(residual1))
+            # plot!(recon2[:,1], recon2[:,2], aspect_ratio=:equal, label=norm(residual2))
+            # plot!(best_recon[:,1], best_recon[:,2], aspect_ratio=:equal, label=best_residual)
+            # savefig(@sprintf "mirror_test_intermediate_%d_%d" frame_nr flip_pt)
         end
 
         @info "keeping the best parts and restarting reconstruction"
-        recon1 = keep_best_parts(residual1, deepcopy(recon1), ang, bins, 3, num_points, tail_length, projection[:,1], r)
-        recon2 = keep_best_parts(residual2, deepcopy(recon2), ang, bins, 3, num_points, tail_length, projection[:,1], r)
+        recon_best = keep_best_parts(residual1, deepcopy(best_recon), ang, bins, 3, num_points, tail_length, projection[:,1], r)
+        recon1 = recon2d_tail(deepcopy(recon_best),r,[ang],bins,projection,max_iter, 0.0, stepsize, 1, w_u, zeros(num_points+2))
+        recon2 = recon2d_tail(deepcopy(recon_best),r,[ang],bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w_l)
+        best_residual,best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
 
-        heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none)
-        plot!(recon1[:,1], recon1[:,2], aspect_ratio=:equal, label="best1")
-        plot!(recon2[:,1], recon2[:,2], aspect_ratio=:equal, label="best2")
-        savefig(@sprintf "test1_%d" frame_nr)
+        @info "checking if any parts could need mirroring 2"
+        initial1 = deepcopy(recon1)
+        initial2 = deepcopy(recon2)
+        for flip_pt=1:num_points
+            last_residual1, last_residual2 = residual1, residual2
+            recon1_flipped = flip(initial1,flip_pt,ang)
+            recon2_flipped = flip(initial2,flip_pt,ang)
+            #mirror and reconstruct with weights on both sides
+            recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w_u, w_l)
+            recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w_u, w_l)
 
-        recon1 = recon2d_tail(deepcopy(recon1),r,angles,bins,projection,max_iter, 0.0, stepsize, 1, w_u, zeros(num_points+2))
-        recon2 = recon2d_tail(deepcopy(recon2),r,angles,bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w_l)
+            best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
 
-        residual1 = parallel_forward(get_outline(recon1, r)[1], [ang], bins) - projection
-        residual2 = parallel_forward(get_outline(recon2, r)[1], [ang], bins) - projection
-        ok1 = could_be_sperm_tail(tail_length, recon1)
-        ok2 = could_be_sperm_tail(tail_length, recon2)
-        recon1_ok = ok1 && norm(residual1) < 2.5
-        recon2_ok = ok2 && norm(residual2) < 2.5
-        @info ok1 norm(residual1)
-        @info ok2 norm(residual2)
-
-        if ok1 && norm(residual1) < best_residual
-            reconstructions[:,:,frame_nr] = recon1
-            best_residual = norm(residual1)
-        elseif norm(gt-recon1) < best_diff
-            missed[:,:,frame_nr] = recon1
-            best_diff = norm(gt-recon1)
-        end
-
-        if ok2 && norm(residual2) < best_residual
-            reconstructions[:,:,frame_nr] = recon2
-            best_residual = norm(residual2)
-        elseif norm(gt-recon2) < best_diff
-            missed[:,:,frame_nr] = recon2
-            best_diff = norm(gt-recon2)
+            #plot
+            #heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none)
+            # plot!(template[:,1], template[:,2], aspect_ratio=:equal, label="template")
+            # plot!(recon1[:,1], recon1[:,2], aspect_ratio=:equal, label=norm(residual1))
+            # plot!(recon2[:,1], recon2[:,2], aspect_ratio=:equal, label=norm(residual2))
+            # plot!(best_recon[:,1], best_recon[:,2], aspect_ratio=:equal, label=best_residual)
+            # savefig(@sprintf "mirror_test_intermediate_%d_%d" frame_nr flip_pt)
         end
     end
-    recon1 = reconstructions[:,:,frame_nr]
-    missedone = missed[:,:,frame_nr]
+    reconstructions[:,:,frame_nr] = best_recon
     @info "plotting"
+    #Plot the ground truth
     heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none)
-
-    plot!(recon1[:,1], recon1[:,2], aspect_ratio=:equal, label=best_residual)
-    plot!(missedone[:,1], reconmissedone2[:,2], missedone=:equal, label="missed")
-
-    savefig(@sprintf "test2_%d" frame_nr)
+    #plot the best reconstruction
+    plot!(best_recon[:,1], best_recon[:,2], aspect_ratio=:equal, label=best_residual)
+    #Plot the mirror
+    mirror = flip(best_recon,1,ang)
+    plot!(mirror[:,1], mirror[:,2], aspect_ratio=:equal, label="mirror")
+    #save the figure
+    savefig(@sprintf "mirror_test_%d" frame_nr)
 end
 
 
