@@ -7,6 +7,7 @@ using Measures
 using Dierckx
 using PolygonOps
 using XfromProjections.curve_utils
+using StaticArrays
 
 
 #Makes a matrix where the matrix entry is true iff the center of corresponding pixel is not outside the closed curve

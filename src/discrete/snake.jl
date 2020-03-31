@@ -4,11 +4,11 @@ using Dierckx
 using IterTools
 using .snake_forward
 using .curve_utils
-#using Plots
+using Plots
 #Reimplementation of Vedranas method with modifications.
 
 #VEDRANA MODIFIED
-function displace(centerline_points, force, radius_func, w, w_u, w_l)
+function displace(centerline_points, force, radius_func, w, w_u, w_l; plot=false)
     L = size(centerline_points,1)
     (outline_xy, normal) = get_outline(centerline_points, radius_func)
 
@@ -31,13 +31,14 @@ function displace(centerline_points, force, radius_func, w, w_u, w_l)
     displaced_centerline[2:end-1,:] = (displaced_upper_points[3:end-2,:]+displaced_lower_points[3:end-2,:])./2
     displaced_centerline[1,:] = (displaced_upper_points[1,:]+displaced_lower_points[1,:]+displaced_upper_points[2,:]+displaced_lower_points[2,:])./4
     displaced_centerline[L,:] = (displaced_upper_points[end,:]+displaced_lower_points[end,:]+displaced_upper_points[end-1,:]+displaced_lower_points[end-1,:])./4
-    #PLO
-    # f = cat(w*(upper_forces.*w_u), (w*(lower_forces.*w_l))[end:-1:1,:], dims = 1).*25
-    # quiver!(outline_xy[:,1], outline_xy[:,2], quiver=(f[:,1], f[:,2]), color=:gray)
+    if plot
+        f = cat(w*(upper_forces.*w_u), (w*(lower_forces.*w_l))[end:-1:1,:], dims = 1).*25
+        quiver!(outline_xy[:,1], outline_xy[:,2], quiver=(f[:,1], f[:,2]), color=:gray)
+    end
     return displaced_centerline
 end
 
-function move_points(residual,curves,angles,N,centerline_points,r,w,w_u, w_l)
+function move_points(residual,curves,angles,N,centerline_points,r,w,w_u, w_l; plot=false)
     (x_length, y_length) = size(residual)
     vals = zeros(Float64, N)
     if y_length > 1
@@ -55,7 +56,7 @@ function move_points(residual,curves,angles,N,centerline_points,r,w,w_u, w_l)
 
     force = vals*(1/length(angles))
 
-    centerline_points = displace(centerline_points, force, r, w, w_u, w_l)
+    centerline_points = displace(centerline_points, force, r, w, w_u, w_l, plot=plot)
     return centerline_points
 end
 
@@ -73,7 +74,7 @@ function to_pixel_coordinates(current, angles, bins)
     return vertex_coordinates
 end
 
-function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, w_u, w_l, smoothness, degree::Int64)
+function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, w_u, w_l, smoothness, degree::Int64; plot=false)
     (current, normal) = get_outline(centerline_points, r)
     current_sinogram = parallel_forward(current,angles,bins)
 
@@ -83,7 +84,7 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
     N = size(current,1)
     centerline_start = centerline_points[1,:]
     for iter  = 1:max_iter
-        centerline_points = move_points(residual,curves,angles,N,centerline_points,r, w, w_u,w_l)
+        centerline_points = move_points(residual,curves,angles,N,centerline_points,r, w, w_u,w_l, plot=plot)
 
         L = size(centerline_points,1)
         #HACK
@@ -118,8 +119,8 @@ function evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_i
     return centerline_points
 end
 
-function recon2d_tail(centerline_points::AbstractArray{T,2}, r, angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, smoothness::T, w::T, degree::Int64, w_u::Array{T}, w_l::Array{T}) where T<:AbstractFloat
-    current = evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, w_u, w_l, smoothness, degree)
+function recon2d_tail(centerline_points::AbstractArray{T,2}, r, angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, smoothness::T, w::T, degree::Int64, w_u::Array{T}, w_l::Array{T}; plot=false) where T<:AbstractFloat
+    current = evolve_curve(sinogram_target, centerline_points, r, angles, bins, max_iter, w, w_u, w_l, smoothness, degree, plot=plot)
     return current
 end
 
