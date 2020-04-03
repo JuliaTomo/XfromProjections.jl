@@ -18,7 +18,7 @@ function could_be_sperm_tail(tail_length, centerline_points)
     length_ok = t[end] <= tail_length+0.1*tail_length && t[end] >= tail_length-0.1*tail_length
 
     #tail is within +/- 10% estimated length, and curvature changes sign at most once.
-    return cuvature_changes, k
+    return cuvature_changes, k, length_ok
 end
 
 function findMinAvgSubarray(arr, k)
@@ -80,7 +80,14 @@ function estimate_projected_length(projection, ang, r,bins)
     projection_end1 = findfirst(p -> p > 2*r(0.0), projection)
     projection_end2 = findlast(p -> p > 2*r(0.0), projection)
 
-    return abs(bins[projection_end1]-bins[projection_end2])
+    if projection_end1 == nothing || projection_end2 == nothing
+        @warn "less than minimimum projection values"
+        #TODO understand why!
+        #just return some default value
+        return 30
+    else
+        return abs(bins[projection_end1]-bins[projection_end2])
+    end
 end
 #(detector)   (a)
 #|             /|
@@ -155,14 +162,14 @@ end
 function try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
     residual1 = parallel_forward(get_outline(recon1, r)[1], [ang], bins) - projection
     residual2 = parallel_forward(get_outline(recon2, r)[1], [ang], bins) - projection
-    ok1, k = could_be_sperm_tail(tail_length, recon1)
-    ok2, k = could_be_sperm_tail(tail_length, recon2)
-    if ok1 <= 1 && norm(residual1) < best_residual
+    ok1, k, length_ok1 = could_be_sperm_tail(tail_length, recon1)
+    ok2, k, length_ok2 = could_be_sperm_tail(tail_length, recon2)
+    if norm(residual1) < best_residual && ok1 <= 1 && length_ok1
         best_residual = norm(residual1)
         best_recon = recon1
     end
 
-    if ok2 <= 1 && norm(residual2) < best_residual
+    if norm(residual2) < best_residual && ok2 <= 1 && length_ok2
         best_residual = norm(residual2)
         best_recon = recon2
     end

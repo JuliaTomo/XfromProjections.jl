@@ -53,8 +53,8 @@ for flip_pt=1:num_points
     recon1_flipped = flip(initial1,flip_pt,angles[1])
     recon2_flipped = flip(initial2,flip_pt,angles[1])
     #mirror and reconstruct with weights on both sides
-    recon1 = recon2d_tail(deepcopy(recon1_flipped),r,angles,bins,sinogram,100, 0.0, stepsize, 1, w_u, w_l)
-    recon2 = recon2d_tail(deepcopy(recon2_flipped),r,angles,bins,sinogram,100, 0.0, stepsize, 1, w_u, w_l)
+    recon1 = recon2d_tail(deepcopy(recon1_flipped),r,angles,bins,sinogram,100, 0.0, stepsize, 1, w_u, zeros(num_points+2))
+    recon2 = recon2d_tail(deepcopy(recon2_flipped),r,angles,bins,sinogram,100, 0.0, stepsize, 1, zeros(num_points+2), w_l)
 
     global best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, angles[1], bins, sinogram, best_recon, tail_length)
 end
@@ -71,8 +71,8 @@ for flip_pt=1:num_points
     recon1_flipped = flip(initial1,flip_pt,angles[1])
     recon2_flipped = flip(initial2,flip_pt,angles[1])
     #mirror and reconstruct with weights on both sides
-    recon1 = recon2d_tail(deepcopy(recon1_flipped),r,angles,bins,sinogram,100, 0.0, stepsize, 1, w_u, w_l)
-    recon2 = recon2d_tail(deepcopy(recon2_flipped),r,angles,bins,sinogram,100, 0.0, stepsize, 1, w_u, w_l)
+    recon1 = recon2d_tail(deepcopy(recon1_flipped),r,angles,bins,sinogram,100, 0.0, stepsize, 1, w_u, zeros(num_points+2))
+    recon2 = recon2d_tail(deepcopy(recon2_flipped),r,angles,bins,sinogram,100, 0.0, stepsize, 1, zeros(num_points+2), w_l)
 
     global best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, angles[1], bins, sinogram, best_recon, tail_length)
 end
