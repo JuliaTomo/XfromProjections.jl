@@ -164,12 +164,13 @@ function try_improvement(best_residual, recon1, recon2, ang, bins, projection, b
     residual2 = parallel_forward(get_outline(recon2, r)[1], [ang], bins) - projection
     ok1, k1, length_ok1 = could_be_sperm_tail(tail_length, recon1)
     ok2, k2, length_ok2 = could_be_sperm_tail(tail_length, recon2)
-    if norm(residual1) < best_residual && ok1 <= 1 && length_ok1
+
+    if norm(residual1)+max(0,ok1-1) < best_residual  && length_ok1
         best_residual = norm(residual1)
         best_recon = recon1
     end
 
-    if norm(residual2) < best_residual && ok2 <= 1 && length_ok2
+    if norm(residual2)+max(0,ok2-1) < best_residual  && length_ok2 # && ok2 <= 1
         best_residual = norm(residual2)
         best_recon = recon2
     end
