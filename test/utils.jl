@@ -43,7 +43,7 @@ function findMinAvgSubarray(arr, k)
 
     return result_index
 end
-#TODO add tail length and projection length to estimate the tail end point - two possibilities pick smoothest one
+
 function best_parts(residual, centerline_points, ang, bins, k)
     first_third = Int64(round(size(centerline_points,1)/3))
     second_third = Int64(round(2*size(centerline_points,1)/3))
@@ -117,7 +117,7 @@ function keep_best_parts(residual, centerline_points, ang, bins, k, num_points, 
     end
     #create spline
     t = curve_lengths(best)
-    spl = ParametricSpline(t,best', k=1, s=0.0)
+    spl = ParametricSpline(t,best', k=1, s=1.0)
     tspl = range(0, t[end], length=num_points)
     good_parts_of_tail = spl(tspl)'
     return good_parts_of_tail
@@ -162,8 +162,8 @@ end
 function try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
     residual1 = parallel_forward(get_outline(recon1, r)[1], [ang], bins) - projection
     residual2 = parallel_forward(get_outline(recon2, r)[1], [ang], bins) - projection
-    ok1, k, length_ok1 = could_be_sperm_tail(tail_length, recon1)
-    ok2, k, length_ok2 = could_be_sperm_tail(tail_length, recon2)
+    ok1, k1, length_ok1 = could_be_sperm_tail(tail_length, recon1)
+    ok2, k2, length_ok2 = could_be_sperm_tail(tail_length, recon2)
     if norm(residual1) < best_residual && ok1 <= 1 && length_ok1
         best_residual = norm(residual1)
         best_recon = recon1

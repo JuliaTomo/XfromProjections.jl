@@ -107,7 +107,9 @@ function generate_random_sperm(projection::Array{T,1}, previous_sperm::Array{T,2
     arc = get_arc(head, radial, allowed_angle, 10)
     weights = get_weights(arc, projection, bins, ang)
     p=pick_random_point(arc,weights)
-
+    if any(x-> isnan(x), p)
+        @info p[1] p[2] head[1] head[2] neck[1] neck[2]
+    end
 
 
     points = zeros(n,2)
@@ -121,19 +123,35 @@ function generate_random_sperm(projection::Array{T,1}, previous_sperm::Array{T,2
         weights = get_weights(arc, projection, bins, ang)
         p=pick_random_point(arc,weights)
         maxiter, iter = 100, 1
-        while !feasible_region(p) && iter < maxiter
+        while (!feasible_region(p) || any(x-> isnan(x), p)) && iter < maxiter
+            if any(x-> isnan(x), p)
+                @info prev_point[1] prev_point[2] radial[1] radial[2]
+            end
             p=pick_random_point(arc,weights)
             iter += 1
+        end
+        if any(x-> isnan(x), p)
+            break
         end
         points[i,:] = p
     end
     L = size(points,1)
-    #points = eliminate_loopy_stuff(points, 2*(r(0.0)))
+
+    points = eliminate_loopy_stuff(points, 2*(r(0.0)))
 
     t = curve_lengths(points)
-    spl = ParametricSpline(t,points',k=2, s=3.0)
-    tspl = range(0, t[end], length=L)
-    return spl(tspl)'
+    result = previous_sperm
+    try
+        spl = ParametricSpline(t,points',k=2, s=3.0)
+        tspl = range(0, t[end], length=L)
+        result = spl(tspl)'
+    catch
+        println(points)
+        plot!(points[:,1], points[:,2], aspect_ratio=:equal, label="random", linewidth=2)
+        random_nr=rand(Int64)
+        savefig(@sprintf "random_%d" random_nr)
+    end
+    return result
 end
 
 # cp = [-0.0, -0.5]
