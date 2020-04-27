@@ -19,7 +19,7 @@ export recon2d_tv_primaldual_flow
 include("discrete/curve_utils.jl")
 include("discrete/snake_forward.jl")
 include("discrete/snake.jl")
-export recon2d_tail
+export recon2d_tail, vedrana
 
 #edges
 include("edge_from_proj.jl")

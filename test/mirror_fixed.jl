@@ -1,4 +1,3 @@
-using DelimitedFiles
 using Logging
 using Plots
 using XfromProjections.curve_utils

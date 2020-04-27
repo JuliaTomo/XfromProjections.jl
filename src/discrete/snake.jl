@@ -5,6 +5,7 @@ using IterTools
 using .snake_forward
 using .curve_utils
 using Plots
+using MATLAB
 #Reimplementation of Vedranas method with modifications.
 
 #VEDRANA MODIFIED
@@ -25,9 +26,7 @@ function displace(centerline_points, force, radius_func, w, w_u, w_l; plot=false
     displaced_upper_points = upper_points .+ w*(upper_forces.*w_u);
     displaced_lower_points = lower_points .+ w*(lower_forces.*w_l);
     displaced_centerline = zeros(L,2)
-    # println(size(displaced_centerline[2:end-1,:]))
-    # println(size(displaced_upper_points[3:end-2,:]))
-    # println(size(displaced_lower_points[3:end-2,:]))
+
     displaced_centerline[2:end-1,:] = (displaced_upper_points[3:end-2,:]+displaced_lower_points[3:end-2,:])./2
     displaced_centerline[1,:] = (displaced_upper_points[1,:]+displaced_lower_points[1,:]+displaced_upper_points[2,:]+displaced_lower_points[2,:])./4
     displaced_centerline[L,:] = (displaced_upper_points[end,:]+displaced_lower_points[end,:]+displaced_upper_points[end-1,:]+displaced_lower_points[end-1,:])./4
@@ -126,81 +125,68 @@ end
 
 
 # #VEDRANA ORIGINAL
-# function regularization_matrix(N,alpha,beta)
-#     mat"[$B, $A] = regularization_matrix($N,$alpha,$beta);"
-#     return B
-# end
+function regularization_matrix(N,alpha,beta)
+    mat"[$B, $A] = regularization_matrix($N,$alpha,$beta);"
+    return B
+end
 #
-# function remove_crossings(curve)
-#     mat"$curve = remove_crossings($curve);"
-#     return curve
-# end
+function remove_crossings(curve)
+    mat"$curve = remove_crossings($curve);"
+    return curve
+end
 #
-# function distribute_points(curve)
-#     curve = cat(dims = 1, curve, curve[1,:]'); # closing the curve
-#     N = size(curve,1); # number of points [+ 1, due to closing]
-#     dist = sqrt.(sum(diff(curve, dims=1).^2, dims=2))[:,1]; # edge segment lengths
-#     t = prepend!(cumsum(dist, dims=1)[:,1],0.0) # total curve length
+function distribute_points(curve)
+    curve = cat(dims = 1, curve, curve[1,:]'); # closing the curve
+    N = size(curve,1); # number of points [+ 1, due to closing]
+    dist = sqrt.(sum(diff(curve, dims=1).^2, dims=2))[:,1]; # edge segment lengths
+    t = prepend!(cumsum(dist, dims=1)[:,1],0.0) # total curve length
+
+    tq = range(0,t[end],length=N); # equidistant positions
+    curve_new_1 = Spline1D(t,curve[:,1], k=1).(tq); # distributed x
+    curve_new_2 = Spline1D(t,curve[:,2], k=1).(tq); # distributed y
+    curve_new = hcat(curve_new_1,curve_new_2); # opening the curve again
+    return curve_new[1:end-1,:]
+end
+
+function move_points_original(residual,curves,angles,N,current,B,w)
+    (x_length, y_length) = size(residual)
+    F = Spline2D(collect(1:1.0:x_length), collect(1:1.0:y_length), residual, kx=1, ky=1);
+    vals = zeros(Float64, N)
+    for i = 1:length(angles)
+        interp = F(curves[:,i], repeat([i], N))
+        vals += interp
+    end
+    force = vals*(1/length(angles))
+    normals = snake_normals(current)
+    vectors = force.*normals
+    current = current + w*vectors;
+    current = distribute_points(remove_crossings(B*current))
+    return current
+end
+
+function evolve_curve_original(sinogram_target, current, angles, bins, B, max_iter, w)
+    current_sinogram = parallel_forward(current,angles,bins)
+
+    curves = to_pixel_coordinates(current, angles, bins);
+
+    mu = sum(sinogram_target[:].*current_sinogram[:])/sum(current_sinogram[:].^2)
+    residual = sinogram_target - mu*current_sinogram
+    N = size(current,1)
+
+    for iter  = 1:max_iter
+        current = move_points_original(residual,curves,angles,N,current,B,w);
+        current_sinogram = parallel_forward(current,angles,bins);
+        curves = to_pixel_coordinates(current, angles, bins);
+        mu = sum(sinogram_target[:].*current_sinogram[:])/sum(current_sinogram[:].^2)
+        residual = sinogram_target - mu*current_sinogram;
+    end
+    return current
+end
+
+function vedrana(current::Array{T,2},angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int, alpha::T, beta::T, w::T) where T<:AbstractFloat
+    N = size(current,1)
+    B = regularization_matrix(N,alpha,beta)
+    current = evolve_curve_original(sinogram_target, current, angles, bins, B, max_iter, w)
+    return current
+end
 #
-#     tq = range(0,t[end],length=N); # equidistant positions
-#     curve_new_1 = Spline1D(t,curve[:,1], k=1).(tq); # distributed x
-#     curve_new_2 = Spline1D(t,curve[:,2], k=1).(tq); # distributed y
-#     curve_new = hcat(curve_new_1,curve_new_2); # opening the curve again
-#     return curve_new[1:end-1,:]
-# end
-#
-# function move_points_original(residual,curves,angles,N,current,B,w)
-#     (x_length, y_length) = size(residual)
-#     F = Spline2D(collect(1:1.0:x_length), collect(1:1.0:y_length), residual, kx=1, ky=1);
-#     vals = zeros(Float64, N)
-#     for i = 1:length(angles)
-#         interp = F(curves[:,i], repeat([i], N))
-#         vals += interp
-#     end
-#     force = vals*(1/length(angles))
-#     normals = snake_normals(current)
-#     vectors = force.*normals
-#     current = current + w*vectors;
-#     current = distribute_points(remove_crossings(B*current))
-#     return current
-# end
-#
-# function evolve_curve_original(sinogram_target, current, angles, bins, B, max_iter, w)
-#     current_sinogram = parallel_forward(current,angles,bins)
-#
-#     curves = to_pixel_coordinates(current, angles, bins);
-#
-#     mu = sum(sinogram_target[:].*current_sinogram[:])/sum(current_sinogram[:].^2)
-#     residual = sinogram_target - mu*current_sinogram
-#     N = size(current,1)
-#
-#     for iter  = 1:max_iter
-#         current = move_points_original(residual,curves,angles,N,current,B,w);
-#         current_sinogram = parallel_forward(current,angles,bins);
-#         curves = to_pixel_coordinates(current, angles, bins);
-#         mu = sum(sinogram_target[:].*current_sinogram[:])/sum(current_sinogram[:].^2)
-#         residual = sinogram_target - mu*current_sinogram;
-#     end
-#     return current
-# end
-#
-# function Vedrana(current::Array{T,2},angles::Array{T},bins::Array{T},sinogram_target::Array{T,2}, max_iter::Int) where T<:AbstractFloat
-#     N = size(current,1)
-#     alpha = 0.0 # elasticity
-#     beta = 0.0 #rigidity
-#     w = 0.2
-#     B = regularization_matrix(N,alpha,beta)
-#     current = evolve_curve_original(sinogram_target, current, angles, bins, B, max_iter, w)
-#     return current
-# end
-#
-# ##UNRELATED NEEDS MOVING
-# function dynamic_window(sinogram_full::Array{T,2}, indices::Array{UnitRange{Int64}}, reconstruction_function, bins::Array{T}, angles::Array{T}) where T <:AbstractFloat
-#     results = Array[]
-#     for i = 1:length(indices)
-#         sinogram = sinogram_full[:,indices[i]]
-#         res = reconstruction_function(sinogram, angles[indices[i]], bins)
-#         push!(results, res)
-#     end
-#     return results
-# end

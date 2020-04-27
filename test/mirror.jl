@@ -1,4 +1,3 @@
-using DelimitedFiles
 using Logging
 using Plots
 using XfromProjections.curve_utils
@@ -14,7 +13,7 @@ path = normpath(joinpath(@__DIR__, "phantoms"))
 cd(path)
 #data = readdlm("hyperactive_sperm_trajectory.xyz", '\t')
 data = readdlm("non_hyperactive_sperm_trajectory.xyz", '\t')
-#remove first and last column which artime_sequence[:,1,1]e not relevant
+#remove first and last column which are not relevant
 data = data[1:end, 1:end .!= 1]
 data = data[1:end, 1:end .!= 3]
 
