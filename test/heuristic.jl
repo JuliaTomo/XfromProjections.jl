@@ -30,7 +30,7 @@ cwd = @__DIR__
 savepath = normpath(joinpath(@__DIR__, "results/article_results/"))
 
 
-images, tracks = get_sperm_phantom(101,grid_size=0.1)
+images, tracks = get_sperm_phantom(301,grid_size=0.1)
 
 detmin, detmax = -38.0, 38.0
 grid = collect(detmin:0.1:detmax)
@@ -41,7 +41,7 @@ angles, max_iter, stepsize = [ang], 10000, 0.1
 tail_length = curve_lengths(tracks[end])[end]
 num_points = 30
 r(s) = 1.0
-frames2reconstruct = collect(1:10:100)
+frames2reconstruct = collect(1:10:300)
 reconstructions = zeros(num_points,2,length(frames2reconstruct)+1)
 #Add actual track at the end so rand sperm works and we can compare timewise
 centerline_points = tracks[frames2reconstruct[end]+10]
@@ -92,47 +92,54 @@ for (iter, frame_nr) in Base.Iterators.reverse(enumerate(frames2reconstruct))
     recon1 = recon2d_tail(deepcopy(template),r,[ang],bins,projection,max_iter, 0.0, stepsize, 1, w, zeros(num_points+2))
     recon2 = recon2d_tail(deepcopy(template),r,[ang],bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w)
     best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
-
     plot_update(best_recon, best_residual, "initial")
-    @info "checking if any parts could need mirroring"
-    initial1 = deepcopy(recon1)
-    initial2 = deepcopy(recon2)
 
-    for flip_pt=1:num_points
-        recon1_flipped = flip(initial1,flip_pt,ang)
-        recon2_flipped = flip(initial2,flip_pt,ang)
-
-        best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1_flipped, recon2_flipped, ang, bins, projection, best_recon, tail_length)
-
-        #mirror and reconstruct with weights on both sides
-        recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w, zeros(num_points+2))
-        recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, zeros(num_points+2), w)
+    for i = 1:10
+        @info "keeping the best parts and restarting reconstruction 1"
+        recon_best = keep_best_parts(residual1, deepcopy(best_recon), ang, bins, 3, num_points, tail_length, projection[:,1], r)
+        recon1 = recon2d_tail(deepcopy(recon_best),r,[ang],bins,projection,max_iter, 0.0, stepsize, 1, w, zeros(num_points+2))
+        recon2 = recon2d_tail(deepcopy(recon_best),r,[ang],bins,projection,max_iter, 0.0, stepsize, 1, zeros(num_points+2), w)
         best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+        plot_update(best_recon, best_residual, "best")
+        @info "checking if any parts could need mirroring"
+        initial1 = deepcopy(recon1)
+        initial2 = deepcopy(recon2)
 
-        recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, zeros(num_points+2), w)
-        recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w, zeros(num_points+2))
-        best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+        for flip_pt=1:num_points
+            recon1_flipped = flip(initial1,flip_pt,ang)
+            recon2_flipped = flip(initial2,flip_pt,ang)
+
+            best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1_flipped, recon2_flipped, ang, bins, projection, best_recon, tail_length)
+
+            #mirror and reconstruct with weights on both sides
+            recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w, zeros(num_points+2))
+            recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, zeros(num_points+2), w)
+            best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+
+            recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, zeros(num_points+2), w)
+            recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w, zeros(num_points+2))
+            best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+        end
+        plot_update(best_recon, best_residual, "flip1")
+
+        for (flip_i,flip_j) in subsets(1:num_points, Val{2}())
+            recon1_flipped = flip(initial1,flip_i,ang)
+            recon1_flipped = flip(recon1_flipped,flip_j,ang)
+            recon2_flipped = flip(initial2,flip_i,ang)
+            recon2_flipped = flip(recon2_flipped,flip_j,ang)
+
+            best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1_flipped, recon2_flipped, ang, bins, projection, best_recon, tail_length)
+
+            recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w, zeros(num_points+2))
+            recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, zeros(num_points+2), w)
+            best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+
+            recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, zeros(num_points+2), w)
+            recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w, zeros(num_points+2))
+            best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
+        end
+        plot_update(best_recon, best_residual, "flip2")
     end
-    plot_update(best_recon, best_residual, "flip1")
-
-    for (flip_i,flip_j) in subsets(1:num_points, Val{2}())
-        recon1_flipped = flip(initial1,flip_i,ang)
-        recon1_flipped = flip(recon1_flipped,flip_j,ang)
-        recon2_flipped = flip(initial2,flip_i,ang)
-        recon2_flipped = flip(recon2_flipped,flip_j,ang)
-
-        best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1_flipped, recon2_flipped, ang, bins, projection, best_recon, tail_length)
-
-        recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w, zeros(num_points+2))
-        recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, zeros(num_points+2), w)
-        best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
-
-        recon1 = recon2d_tail(deepcopy(recon1_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, zeros(num_points+2), w)
-        recon2 = recon2d_tail(deepcopy(recon2_flipped),r,[ang],bins,projection,100, 0.0, stepsize, 1, w, zeros(num_points+2))
-        best_residual, best_recon[:,:], residual1, residual2 = try_improvement(best_residual, recon1, recon2, ang, bins, projection, best_recon, tail_length)
-    end
-    plot_update(best_recon, best_residual, "flip2")
-
     reconstructions[:,:,iter] = best_recon
     #plot!(best_recon[:,1], best_recon[:,2], aspect_ratio=:equal, label=best_residual, linewidth=2)
     savefig(@sprintf "heuristic_result_%d" frame_nr)
@@ -143,4 +150,20 @@ for (iter, frame_nr) in Base.Iterators.reverse(enumerate(frames2reconstruct))
     savefig(@sprintf "result_%d" frame_nr)
 end
 
+global ps = AbstractPlot[]
+for (iter, frame_nr) in enumerate(frames2reconstruct)
+    best_recon = reconstructions[:,:,iter]
+    mirror = flip(best_recon,1,ang)
+
+    l = @layout [a b c]
+    p = heatmap(grid, grid, Gray.(images[:,:,frame_nr]), yflip=false, aspect_ratio=:equal, framestyle=:none, legend=false)
+    plot!(best_recon[:,1],best_recon[:,2], aspect_ratio=:equal, linewidth=5)
+    plot!(mirror[:,1], mirror[:,2], aspect_ratio=:equal, linewidth=5)
+    push!(ps,p)
+    if length(ps) == 3
+        plot(ps[1], ps[2], ps[3], layout = l, size=(2000,600), linewidth=5)
+        savefig(@sprintf "result_all_%d" frame_nr)
+        global ps = AbstractPlot[]
+    end
+end
 cd(cwd)
