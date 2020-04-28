@@ -54,7 +54,7 @@ for t = 1:size(frames)[3]
     A = As[t]
     p = bs[:,t]
     u0 = u0s[:,:,t]
-    us_tv[:,:,t] .= recon2d_tv_primaldual(us_tv[:,:,t], A, p, niter, w_tv, c)
+    us_tv[:,:,t] .= recon2d_tv_primaldual!(us_tv[:,:,t], A, p, niter, w_tv, c)
 end
 
 @info "Preparing results in human readable format"

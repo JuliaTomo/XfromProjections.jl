@@ -8,7 +8,7 @@ export filter_proj
 include("iterative/util_convexopt.jl")
 include("iterative/tv_primaldual.jl")
 include("iterative/sirt.jl")
-export recon2d_tv_primaldual, recon2d_sirt
+export recon2d_tv_primaldual!, recon2d_sirt
 
 # dynamic
 include("dynamic/optical_flow.jl")
