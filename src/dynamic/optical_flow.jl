@@ -1,6 +1,6 @@
-module optical_flow
+#module optical_flow
 
-export get_flows, compute_warping_operator
+#export get_flows, compute_warping_operator
 
 using PyCall
 using Suppressor
@@ -15,7 +15,7 @@ function __init__()
     import numpy as np
     import pyflow
 
-    def py_flow(img1,img2,alpha=0.012, ratio=0.75, minWidth=20, nOuterFPIterations=1, nInnerFPIterations=1, nSORIterations=30, colType=1):
+    def py_flow(img1,img2,alpha=0.012, ratio=0.75, minWidth=20, nOuterFPIterations=7, nInnerFPIterations=1, nSORIterations=30, colType=1):
         img1 = np.array(img1)
         img2 = np.array(img2)
         height, width = img1.shape
@@ -30,7 +30,6 @@ function __init__()
         return u, v, im2W
     """
 end
-# ##############################################################
 
 function get_flows(u::Array{T,3})::Array{T,4} where {T<:AbstractFloat}
     @suppress begin
@@ -162,4 +161,4 @@ function compute_warping_operator(flow)
     return LinearOperator(W_mat)
 end
 
-end
+#end
