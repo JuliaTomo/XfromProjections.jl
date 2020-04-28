@@ -26,10 +26,10 @@ images, tracks = get_sperm_phantom(301,grid_size=0.1)
 detmin, detmax = -38.0, 38.0
 grid = collect(detmin:0.1:detmax)
 bins = collect(detmin:0.125:detmax)
-angles = collect(range(0.0,π,length=4))[1:end-1]
+angles = collect(range(0.0,π,length=6))[1:end-1]
 iterations = 1000
-α = 0.1
-β = 0.1
+α = 0.01
+β = 0.01
 step_size = 0.2
 r(s) = 1.0
 

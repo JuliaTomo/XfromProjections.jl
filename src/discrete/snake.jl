@@ -148,13 +148,43 @@ function distribute_points(curve)
     return curve_new[1:end-1,:]
 end
 
+function move_points(residual,curves,angles,N,centerline_points,r,w,w_u, w_l; plot=false)
+    (x_length, y_length) = size(residual)
+    vals = zeros(Float64, N)
+    if y_length > 1
+        F = Spline2D(collect(1:1.0:x_length), collect(1:1.0:y_length), residual, kx=1, ky=1);
+        vals = zeros(Float64, N)
+        for i = 1:length(angles)
+            interp = F(curves[:,i], repeat([i], N))
+            vals += interp
+        end
+    else
+        F = Spline1D(collect(1:1.0:x_length), residual[:,1], k=1);
+        interp = F(curves[:,1])
+        vals = interp
+    end
+
+    force = vals*(1/length(angles))
+
+    centerline_points = displace(centerline_points, force, r, w, w_u, w_l, plot=plot)
+    return centerline_points
+end
+
 function move_points_original(residual,curves,angles,N,current,B,w)
     (x_length, y_length) = size(residual)
-    F = Spline2D(collect(1:1.0:x_length), collect(1:1.0:y_length), residual, kx=1, ky=1);
+    #F = Spline2D(collect(1:1.0:x_length), collect(1:1.0:y_length), residual, kx=1, ky=1);
     vals = zeros(Float64, N)
-    for i = 1:length(angles)
-        interp = F(curves[:,i], repeat([i], N))
-        vals += interp
+    if y_length > 1
+        F = Spline2D(collect(1:1.0:x_length), collect(1:1.0:y_length), residual, kx=1, ky=1);
+        vals = zeros(Float64, N)
+        for i = 1:length(angles)
+            interp = F(curves[:,i], repeat([i], N))
+            vals += interp
+        end
+    else
+        F = Spline1D(collect(1:1.0:x_length), residual[:,1], k=1);
+        interp = F(curves[:,1])
+        vals = interp
     end
     force = vals*(1/length(angles))
     normals = snake_normals(current)
