@@ -16,9 +16,13 @@ export filter_proj, bp_slices
 # iterative
 include("iterative/util_convexopt.jl")
 include("iterative/tv_primaldual.jl")
-include("iterative/tv_primaldual_flow.jl")
 include("iterative/ctv_primaldual.jl")
 include("iterative/sirt.jl")
+
+
+# optional
+#include("iterative/tv_primaldual_flow.jl")
+
 export recon2d_sirt!, recon2d_stack_sirt!, _compute_sum_rows_cols
 export recon2d_tv_primaldual!, recon2d_stack_tv_primaldual!, recon2d_ctv_primaldual!, recon2d_tv_primaldual_flow
 export get_flows, compute_warping_operator
