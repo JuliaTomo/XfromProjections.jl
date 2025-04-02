@@ -5,6 +5,7 @@ using LinearAlgebra
 using Suppressor
 using LinearOperators
 using Logging
+using PyCall
 
 # analytic
 include("analytic/filter_proj.jl")
