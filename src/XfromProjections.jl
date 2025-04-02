@@ -2,7 +2,6 @@ module XfromProjections
 
 using SparseArrays
 using LinearAlgebra
-using PyCall
 using Suppressor
 using LinearOperators
 using Logging
